@@ -3,13 +3,20 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 // Load Firebase Config safely
 const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
 let firebaseConfig: any = {};
 if (fs.existsSync(configPath)) {
-  firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  try {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (e) {
+    console.error("Failed to parse firebase-applet-config.json");
+  }
 }
+
+let appInstance: admin.app.App | null = null;
 
 // Initialize Firebase Admin
 if (!admin.apps.length && firebaseConfig.projectId) {
@@ -18,22 +25,29 @@ if (!admin.apps.length && firebaseConfig.projectId) {
 
   if (fs.existsSync(serviceAccountPath)) {
     console.log("Using local service-account.json for authentication.");
-    credential = admin.credential.cert(JSON.parse(fs.readFileSync(serviceAccountPath, "utf8")));
+    try {
+      credential = admin.credential.cert(JSON.parse(fs.readFileSync(serviceAccountPath, "utf8")));
+    } catch (e) {
+      console.error("Failed to parse service-account.json");
+      credential = admin.credential.applicationDefault();
+    }
   } else {
     console.log("No local service account found, falling back to application default credentials.");
     credential = admin.credential.applicationDefault();
   }
 
-  admin.initializeApp({
+  appInstance = admin.initializeApp({
     credential,
     projectId: firebaseConfig.projectId,
   });
+} else if (admin.apps.length) {
+  appInstance = admin.apps[0];
 }
 
-const db = admin.apps.length 
+const db = appInstance 
   ? (firebaseConfig.firestoreDatabaseId 
-      ? admin.firestore(firebaseConfig.firestoreDatabaseId) 
-      : admin.firestore()) 
+      ? getFirestore(appInstance, firebaseConfig.firestoreDatabaseId) 
+      : getFirestore(appInstance)) 
   : null;
 
 async function startServer() {
