@@ -30,7 +30,11 @@ if (!admin.apps.length && firebaseConfig.projectId) {
   });
 }
 
-const db = admin.apps.length ? admin.firestore() : null;
+const db = admin.apps.length 
+  ? (firebaseConfig.firestoreDatabaseId 
+      ? admin.firestore(firebaseConfig.firestoreDatabaseId) 
+      : admin.firestore()) 
+  : null;
 
 async function startServer() {
   const app = express();
