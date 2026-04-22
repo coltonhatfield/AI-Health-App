@@ -601,8 +601,14 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      // Use local persistence to ensure session survives reloads
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      alert(`Login Failed: ${error.message}\nCheck if your domain is authorized in Firebase Console.`);
+    }
   };
 
   if (!user) {
