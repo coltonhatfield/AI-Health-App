@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "HealthMetric": {
+      "title": "Health Metric",
+      "description": "Daily or point-in-time health metric (steps, heart rate, sleep, weight, nutrition)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": [
+          "active_energy", 
+          "carbohydrates", 
+          "dietary_energy", 
+          "fiber", 
+          "height", 
+          "protein", 
+          "resting_energy", 
+          "step_count", 
+          "sugar", 
+          "weight",
+          "heart_rate",
+          "workout_duration"
+        ] },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "source": { "type": "string" }
+      },
+      "required": ["userId", "type", "value", "timestamp"]
+    },
+    "Workout": {
+      "title": "Workout",
+      "description": "Gym session details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "reps": { "type": "number" },
+                    "weight": { "type": "number" },
+                    "unit": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "name", "date"]
+    },
+    "AIInsight": {
+      "title": "AI Insight",
+      "description": "AI-generated health recommendations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "category": { "type": "string", "enum": ["recovery", "performance", "general"] }
+      },
+      "required": ["userId", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Collection of user profiles" },
+    "health_metrics": { "schema": "HealthMetric", "description": "Time-series health data" },
+    "workouts": { "schema": "Workout", "description": "User workout logs" },
+    "ai_insights": { "schema": "AIInsight", "description": "AI-generated recommendations" }
+  }
+}
