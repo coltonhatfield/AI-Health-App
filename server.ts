@@ -13,8 +13,19 @@ if (fs.existsSync(configPath)) {
 
 // Initialize Firebase Admin
 if (!admin.apps.length && firebaseConfig.projectId) {
+  const serviceAccountPath = path.resolve(process.cwd(), "service-account.json");
+  let credential;
+
+  if (fs.existsSync(serviceAccountPath)) {
+    console.log("Using local service-account.json for authentication.");
+    credential = admin.credential.cert(JSON.parse(fs.readFileSync(serviceAccountPath, "utf8")));
+  } else {
+    console.log("No local service account found, falling back to application default credentials.");
+    credential = admin.credential.applicationDefault();
+  }
+
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential,
     projectId: firebaseConfig.projectId,
   });
 }
