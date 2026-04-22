@@ -2,27 +2,28 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import admin from "firebase-admin";
-import firebaseConfig from "./firebase-applet-config.json" assert { type: "json" };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load Firebase Config safely
+const configPath = path.resolve(__dirname, "firebase-applet-config.json");
+let firebaseConfig: any = {};
+if (fs.existsSync(configPath)) {
+  firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+}
 
 // Initialize Firebase Admin
-if (!admin.apps.length) {
+if (!admin.apps.length && firebaseConfig.projectId) {
   admin.initializeApp({
     credential: admin.credential.applicationDefault(),
     projectId: firebaseConfig.projectId,
   });
 }
 
-const db = admin.firestore();
-if (firebaseConfig.firestoreDatabaseId) {
-  // Use the specific database ID if provided
-  // Note: Standard firebase-admin doesn't easily support dynamic DB IDs 
-  // without specialized config, but this initialization is usually sufficient 
-  // in this environment if the project default is used.
-}
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const db = admin.apps.length ? admin.firestore() : null;
 
 async function startServer() {
   const app = express();
@@ -33,6 +34,9 @@ async function startServer() {
   // API Route for Auto Health Export
   app.post("/api/health-data", async (req, res) => {
     try {
+      if (!db) {
+        return res.status(500).json({ error: "Database not initialized" });
+      }
       const payload = req.body;
       const userId = req.query.userId as string;
 
@@ -89,6 +93,7 @@ async function startServer() {
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
+      root: process.cwd(),
       server: { middlewareMode: true },
       appType: "spa",
     });
