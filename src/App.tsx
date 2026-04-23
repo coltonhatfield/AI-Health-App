@@ -64,6 +64,21 @@ interface FirestoreErrorInfo {
   }
 }
 
+import { 
+  ProgressRing, 
+  MultiProgressRing 
+} from './components/ProgressRings';
+
+// --- Constants ---
+const GOALS = {
+  steps: 10000,
+  calories: 2500,
+  protein: 150,
+  carbs: 300,
+  fiber: 30,
+  sugar: 50,
+};
+
 function handleFirestoreError(error: any, operationType: FirestoreErrorInfo['operationType'], path: string | null = null) {
   const authInfo = auth.currentUser ? {
     userId: auth.currentUser.uid,
@@ -125,18 +140,34 @@ const Card = ({ children, className, title }: { children: React.ReactNode, class
   </div>
 );
 
-const MetricTile = ({ icon: Icon, label, value, unit, color }: { icon: any, label: string, value: string | number, unit: string, color: string }) => (
-  <div className="glass-card p-4 rounded-2xl flex flex-col justify-between aspect-square">
-    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", color)}>
-      <Icon size={19} className="text-white" />
+const MetricTile = ({ icon: Icon, label, value, unit, color, percentage }: { icon: any, label: string, value: string | number, unit: string, color: string, percentage?: number }) => (
+  <div className="glass-card p-4 rounded-2xl flex flex-col justify-between aspect-square relative overflow-hidden group">
+    <div className="flex justify-between items-start">
+      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", color)}>
+        <Icon size={19} className="text-white" />
+      </div>
+      {percentage !== undefined && (
+        <ProgressRing 
+          size={36} 
+          strokeWidth={4} 
+          percentage={percentage} 
+          color="currentColor" 
+          className={cn(color.split(' ')[1])} // Extract text color from color prop
+        />
+      )}
     </div>
-    <div>
+    <div className="relative z-10">
       <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">{label}</p>
       <div className="flex items-baseline gap-1">
         <span className="stat-value text-2xl font-bold text-white tracking-tighter">{value}</span>
         <span className="text-zinc-500 text-[10px] uppercase font-bold">{unit}</span>
       </div>
     </div>
+    
+    {/* Optional background glow on hover or if high percentage */}
+    {percentage && percentage > 100 && (
+      <div className="absolute -bottom-8 -right-8 w-16 h-16 bg-blue-500/10 blur-xl rounded-full" />
+    )}
   </div>
 );
 
@@ -159,11 +190,26 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
     return `${feet}'${remainingInches}"`;
   };
 
+  const stepsValue = Math.round(latest(['step_count', 'steps']));
   const stepsData = metrics
     .filter(m => m.type === 'step_count' || m.type === 'steps' || m.type === 'Step Count')
     .slice(0, 7)
     .map(m => ({ date: format(m.timestamp.toDate(), 'MMM d'), val: m.value }))
     .reverse();
+    
+  const caloriesValue = Math.round(latest('dietary_energy'));
+  const proteinValue = Math.round(latest('protein'));
+  const carbsValue = Math.round(latest('carbohydrates'));
+  const fiberValue = Math.round(latest('fiber'));
+  const sugarValue = Math.round(latest(['dietary_sugar', 'sugar']));
+
+  const nutritionMetrics = [
+    { label: 'Calories', value: caloriesValue, goal: GOALS.calories, color: '#fb923c', exceededColor: '#fb7185' },
+    { label: 'Protein', value: proteinValue, goal: GOALS.protein, color: '#10b981', exceededColor: '#34d399' },
+    { label: 'Carbs', value: carbsValue, goal: GOALS.carbs, color: '#3b82f6', exceededColor: '#60a5fa' },
+    { label: 'Fiber', value: fiberValue, goal: GOALS.fiber, color: '#a855f7', exceededColor: '#c084fc' },
+    { label: 'Sugar', value: sugarValue, goal: GOALS.sugar, color: '#f43f5e', exceededColor: '#ef4444' },
+  ];
 
   return (
     <motion.div 
@@ -193,32 +239,73 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
         <MetricTile icon={Activity} label="Readiness" value={latest(['resting_energy', 'basal_energy_burned']) > 0 ? "88" : "--"} unit="/ 100" color="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" />
         <MetricTile icon={Flame} label="Active Burn" value={Math.round(latest('active_energy'))} unit="kcal" color="bg-blue-500/20 text-blue-400 border border-blue-500/30" />
         <MetricTile icon={Zap} label="Basal Burn" value={Math.round(latest('basal_energy_burned'))} unit="kcal" color="bg-orange-500/20 text-orange-400 border border-orange-500/30" />
-        <MetricTile icon={TrendingUp} label="Steps" value={Math.round(latest(['step_count', 'steps']))} unit="steps" color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" />
+        <MetricTile 
+          icon={TrendingUp} 
+          label="Steps" 
+          value={stepsValue} 
+          unit="steps" 
+          color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
+          percentage={(stepsValue / GOALS.steps) * 100}
+        />
       </div>
 
       <Card title="Fueling & Nutrition">
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          <div className="text-center">
-            <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Carbs</p>
-            <p className="text-white font-mono font-bold">{Math.round(latest('carbohydrates'))}g</p>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded-full bg-orange-400/50 group-hover:bg-orange-400 transition-colors" />
+                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Energy</p>
+              </div>
+              <p className="text-white font-mono font-bold text-xs">{caloriesValue} <span className="text-zinc-600 font-normal">/ {GOALS.calories}</span></p>
+            </div>
+            
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded-full bg-emerald-400/50 group-hover:bg-emerald-400 transition-colors" />
+                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Protein</p>
+              </div>
+              <p className="text-white font-mono font-bold text-xs">{proteinValue}g <span className="text-zinc-600 font-normal">/ {GOALS.protein}g</span></p>
+            </div>
+
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded-full bg-blue-400/50 group-hover:bg-blue-400 transition-colors" />
+                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Carbs</p>
+              </div>
+              <p className="text-white font-mono font-bold text-xs">{carbsValue}g <span className="text-zinc-600 font-normal">/ {GOALS.carbs}g</span></p>
+            </div>
           </div>
-          <div className="text-center border-x border-zinc-800">
-            <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Protein</p>
-            <p className="text-white font-mono font-bold">{Math.round(latest('protein'))}g</p>
-          </div>
-          <div className="text-center border-r border-zinc-800">
-            <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Fiber</p>
-            <p className="text-white font-mono font-bold">{Math.round(latest('fiber'))}g</p>
-          </div>
-          <div className="text-center">
-            <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Sugar</p>
-            <p className="text-white font-mono font-bold">{Math.round(latest(['dietary_sugar', 'sugar']))}g</p>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded-full bg-purple-400/50 group-hover:bg-purple-400 transition-colors" />
+                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Fiber</p>
+              </div>
+              <p className="text-white font-mono font-bold text-xs">{fiberValue}g <span className="text-zinc-600 font-normal">/ {GOALS.fiber}g</span></p>
+            </div>
+            
+            <div className="flex items-center justify-between group">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded-full bg-rose-400/50 group-hover:bg-rose-400 transition-colors" />
+                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Sugar</p>
+              </div>
+              <p className={cn("font-mono font-bold text-xs", sugarValue > GOALS.sugar ? "text-rose-500" : "text-white")}>
+                {sugarValue}g <span className="text-zinc-600 font-normal">/ {GOALS.sugar}g</span>
+              </p>
+            </div>
+
+            <div className="h-6 flex items-center justify-end px-1">
+               <p className="text-[9px] uppercase font-black tracking-widest text-zinc-700 italic">Nutrient Density: High</p>
+            </div>
           </div>
         </div>
-        <div className="bg-zinc-800/30 rounded-xl p-3 flex justify-between items-center">
+        
+        <div className="bg-zinc-800/30 rounded-xl p-3 flex justify-between items-center mt-6 border border-zinc-800/50">
            <div>
-             <p className="text-zinc-500 text-[10px] uppercase font-bold">Total Energy Intake</p>
-             <p className="text-white font-bold">{Math.round(latest('dietary_energy'))} <span className="text-zinc-500 text-xs">kcal</span></p>
+             <p className="text-zinc-500 text-[10px] uppercase font-bold">Weight Progress</p>
+             <p className="text-white font-bold">{Math.round(latest(['weight', 'body_mass', 'weight_body_mass']))} <span className="text-zinc-500 text-[10px]">lbs</span></p>
            </div>
            <div className="flex gap-4">
              {latest(['height', 'body_height']) > 0 && (
@@ -227,10 +314,6 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                  <p className="text-white font-bold">{formatHeight(latest(['height', 'body_height']))}</p>
                </div>
              )}
-             <div className="text-right">
-               <p className="text-zinc-500 text-[10px] uppercase font-bold">Weight</p>
-               <p className="text-white font-bold">{Math.round(latest(['weight', 'body_mass', 'weight_body_mass']))} <span className="text-zinc-500 text-[10px]">lbs</span></p>
-             </div>
            </div>
         </div>
       </Card>
