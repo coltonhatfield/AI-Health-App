@@ -142,9 +142,21 @@ const MetricTile = ({ icon: Icon, label, value, unit, color }: { icon: any, labe
 
 const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMetric[], workouts: Workout[], key?: React.Key }) => {
   // Extract latest metrics for the current day
-  const latest = (type: string) => {
-    const found = metrics.find(m => m.type === type);
+  const latest = (types: string | string[]) => {
+    const typeArray = Array.isArray(types) ? types : [types];
+    const found = metrics.find(m => 
+      typeArray.some(t => m.type.toLowerCase() === t.toLowerCase())
+    );
     return found ? found.value : 0;
+  };
+
+  const formatHeight = (val: number) => {
+    if (!val) return "--";
+    // Detect if value is in feet (5.x) or inches (70.x)
+    const inches = val < 10 ? val * 12 : val;
+    const feet = Math.floor(inches / 12);
+    const remainingInches = Math.round(inches % 12);
+    return `${feet}'${remainingInches}"`;
   };
 
   const stepsData = metrics
@@ -178,10 +190,10 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
       </header>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <MetricTile icon={Activity} label="Readiness" value={latest('resting_energy') > 0 || latest('basal_energy_burned') > 0 ? "88" : "--"} unit="/ 100" color="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" />
+        <MetricTile icon={Activity} label="Readiness" value={latest(['resting_energy', 'basal_energy_burned']) > 0 ? "88" : "--"} unit="/ 100" color="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" />
         <MetricTile icon={Flame} label="Active Burn" value={Math.round(latest('active_energy'))} unit="kcal" color="bg-blue-500/20 text-blue-400 border border-blue-500/30" />
         <MetricTile icon={Zap} label="Basal Burn" value={Math.round(latest('basal_energy_burned'))} unit="kcal" color="bg-orange-500/20 text-orange-400 border border-orange-500/30" />
-        <MetricTile icon={TrendingUp} label="Steps" value={latest('step_count') || latest('steps') || 0} unit="steps" color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" />
+        <MetricTile icon={TrendingUp} label="Steps" value={Math.round(latest(['step_count', 'steps']))} unit="steps" color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" />
       </div>
 
       <Card title="Fueling & Nutrition">
@@ -200,7 +212,7 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
           </div>
           <div className="text-center">
             <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Sugar</p>
-            <p className="text-white font-mono font-bold">{Math.round(latest('sugar'))}g</p>
+            <p className="text-white font-mono font-bold">{Math.round(latest(['dietary_sugar', 'sugar']))}g</p>
           </div>
         </div>
         <div className="bg-zinc-800/30 rounded-xl p-3 flex justify-between items-center">
@@ -209,15 +221,15 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
              <p className="text-white font-bold">{Math.round(latest('dietary_energy'))} <span className="text-zinc-500 text-xs">kcal</span></p>
            </div>
            <div className="flex gap-4">
-             {latest('height') > 0 && (
+             {latest(['height', 'body_height']) > 0 && (
                <div className="text-right">
                  <p className="text-zinc-500 text-[10px] uppercase font-bold">Height</p>
-                 <p className="text-white font-bold">{latest('height')} <span className="text-zinc-500 text-[10px]">in</span></p>
+                 <p className="text-white font-bold">{formatHeight(latest(['height', 'body_height']))}</p>
                </div>
              )}
              <div className="text-right">
                <p className="text-zinc-500 text-[10px] uppercase font-bold">Weight</p>
-               <p className="text-white font-bold">{latest('weight') || latest('body_mass') || 0} <span className="text-zinc-500 text-[10px]">lbs</span></p>
+               <p className="text-white font-bold">{Math.round(latest(['weight', 'body_mass', 'weight_body_mass']))} <span className="text-zinc-500 text-[10px]">lbs</span></p>
              </div>
            </div>
         </div>
@@ -592,7 +604,7 @@ export default function App() {
           collection(db, 'health_metrics'),
           where('userId', '==', u.uid),
           orderBy('timestamp', 'desc'),
-          limit(50)
+          limit(250)
         );
         onSnapshot(mq, (snapshot) => {
           setMetrics(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HealthMetric)));
