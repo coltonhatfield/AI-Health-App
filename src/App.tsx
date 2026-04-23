@@ -71,12 +71,12 @@ import {
 
 // --- Constants ---
 const GOALS = {
-  steps: 10000,
-  calories: 2500,
-  protein: 150,
-  carbs: 300,
-  fiber: 30,
-  sugar: 50,
+  steps: 12000,     // Adjusted for active college student
+  calories: 2900,  // TDEE for 165lb athlete with 3-4 workouts
+  protein: 170,    // High protein for muscle maintenance
+  carbs: 350,      // High carb for explosive performance (volleyball)
+  fiber: 35,
+  sugar: 50,       // Strict sugar limit
 };
 
 function handleFirestoreError(error: any, operationType: FirestoreErrorInfo['operationType'], path: string | null = null) {
@@ -257,7 +257,9 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1.5 h-6 rounded-full bg-orange-400/50 group-hover:bg-orange-400 transition-colors" />
                 <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Energy</p>
               </div>
-              <p className="text-white font-mono font-bold text-xs">{caloriesValue} <span className="text-zinc-600 font-normal">/ {GOALS.calories}</span></p>
+              <p className={cn("font-mono font-bold text-xs", caloriesValue > GOALS.calories ? "text-rose-500" : "text-white")}>
+                {caloriesValue} <span className="text-zinc-600 font-normal">/ {GOALS.calories}</span>
+              </p>
             </div>
             
             <div className="flex items-center justify-between group">
@@ -265,7 +267,9 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1.5 h-6 rounded-full bg-emerald-400/50 group-hover:bg-emerald-400 transition-colors" />
                 <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Protein</p>
               </div>
-              <p className="text-white font-mono font-bold text-xs">{proteinValue}g <span className="text-zinc-600 font-normal">/ {GOALS.protein}g</span></p>
+              <p className={cn("font-mono font-bold text-xs", proteinValue > GOALS.protein ? "text-emerald-500" : "text-white")}>
+                {proteinValue}g <span className="text-zinc-600 font-normal">/ {GOALS.protein}g</span>
+              </p>
             </div>
 
             <div className="flex items-center justify-between group">
@@ -273,7 +277,9 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1.5 h-6 rounded-full bg-blue-400/50 group-hover:bg-blue-400 transition-colors" />
                 <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Carbs</p>
               </div>
-              <p className="text-white font-mono font-bold text-xs">{carbsValue}g <span className="text-zinc-600 font-normal">/ {GOALS.carbs}g</span></p>
+              <p className={cn("font-mono font-bold text-xs", carbsValue > GOALS.carbs ? "text-rose-500" : "text-white")}>
+                {carbsValue}g <span className="text-zinc-600 font-normal">/ {GOALS.carbs}g</span>
+              </p>
             </div>
           </div>
           
@@ -283,7 +289,9 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1.5 h-6 rounded-full bg-purple-400/50 group-hover:bg-purple-400 transition-colors" />
                 <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Fiber</p>
               </div>
-              <p className="text-white font-mono font-bold text-xs">{fiberValue}g <span className="text-zinc-600 font-normal">/ {GOALS.fiber}g</span></p>
+              <p className={cn("font-mono font-bold text-xs", fiberValue > GOALS.fiber ? "text-rose-500" : "text-white")}>
+                {fiberValue}g <span className="text-zinc-600 font-normal">/ {GOALS.fiber}g</span>
+              </p>
             </div>
             
             <div className="flex items-center justify-between group">
@@ -297,7 +305,7 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
             </div>
 
             <div className="h-6 flex items-center justify-end px-1">
-               <p className="text-[9px] uppercase font-black tracking-widest text-zinc-700 italic">Nutrient Density: High</p>
+               <p className="text-[9px] uppercase font-black tracking-widest text-zinc-700 italic">Athlete Profile: Active</p>
             </div>
           </div>
         </div>
