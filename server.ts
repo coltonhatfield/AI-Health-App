@@ -72,34 +72,47 @@ async function startServer() {
       console.log(`Processing health data for user: ${userId}`);
       
       const metrics = payload.data?.metrics || [];
-      const batch = db.batch();
+      console.log(`Received ${metrics.length} metrics from Shortcuts.`);
+      
+      let batch = db.batch();
       let count = 0;
 
       for (const metric of metrics) {
+        if (!metric.name || !metric.data) {
+          console.warn(`Skipping metric with missing name or data:`, metric);
+          continue;
+        }
+
         const metricName = metric.name.toLowerCase().replace(/ /g, '_');
-        const unit = metric.units;
+        const unit = metric.units || '';
         const dataPoints = metric.data || [];
 
+        console.log(`- Metric "${metricName}": Found ${dataPoints.length} data points.`);
+
         for (const dp of dataPoints) {
+          if (!dp.qty || !dp.date) continue;
+
           const docRef = db.collection('health_metrics').doc();
           batch.set(docRef, {
             userId,
             type: metricName,
-            value: dp.qty,
+            value: Number(dp.qty),
             unit: unit,
             timestamp: admin.firestore.Timestamp.fromDate(new Date(dp.date)),
-            source: "auto_health_export"
+            source: "auto_health_export",
+            rawData: dp // Helpful for debugging source issues
           });
           count++;
           
           // Batch size limit is 500
           if (count % 500 === 0) {
             await batch.commit();
+            batch = db.batch();
           }
         }
       }
 
-      if (count % 500 !== 0) {
+      if (count > 0 && count % 500 !== 0) {
         await batch.commit();
       }
 
