@@ -291,6 +291,55 @@ async function startServer() {
     }
   });
 
+  // API Route for Generating Recovery Workout
+  app.post("/api/generate-recovery-workout", async (req, res) => {
+    try {
+      const { soreMuscles } = req.body;
+      
+      const prompt = `
+        You are an elite fitness coach. The user is highly sore in these muscle groups: ${soreMuscles.length > 0 ? soreMuscles.join(', ') : 'None, feeling fully recovered'}. 
+        Generate a single workout session that COMPLETELY AVOIDS any sore muscles and focuses on training the rested muscles.
+        If all muscles are rested, generate a balanced full-body workout.
+        
+        Return the workout in valid JSON format matching this exact structure:
+        {
+          "workout": {
+            "name": string, // Give it a cool, thematic name like 'AI Recovery: Pull Focus'
+            "type": "lifting", // always lifting
+            "exercises": [
+              {
+                "name": string,
+                "weight": number, // estimate a safe starting weight in lbs, or 0 for bodyweight
+                "reps": number,
+                "unit": "lbs"
+              }
+            ]
+          }
+        }
+      `;
+
+      const completion = await groq.chat.completions.create({
+        model: "llama-3.1-8b-instant", 
+        messages: [
+          { role: "system", content: "You are a specialized fitness AI that only outputs valid JSON." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      });
+
+      const responseText = completion.choices[0].message.content || "{}";
+      const parsed = JSON.parse(responseText);
+
+      // Groq might return {"workout": {...}} or just the plain object, handle securely
+      const result = parsed.workout ? parsed.workout : parsed;
+      res.json(result);
+    } catch (error) {
+      console.error("AI Error Generating Workout:", error);
+      res.status(500).json({ error: "AI processing failed" });
+    }
+  });
+
   // Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });

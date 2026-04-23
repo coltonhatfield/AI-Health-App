@@ -23,3 +23,19 @@ export async function getAIRecommendations(context: HealthContext) {
     return [];
   }
 }
+
+export async function generateRecoveryWorkout(soreMuscles: string[]) {
+  try {
+    const response = await fetch("/api/generate-recovery-workout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ soreMuscles }),
+    });
+    
+    if (!response.ok) throw new Error("Failed to generate workout");
+    return await response.json();
+  } catch (error) {
+    console.error("Workout Generation Error:", error);
+    return null;
+  }
+}

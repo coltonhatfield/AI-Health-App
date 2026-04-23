@@ -64,7 +64,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { getAIRecommendations } from './services/geminiService';
+import { getAIRecommendations, generateRecoveryWorkout } from './services/geminiService';
 interface FirestoreErrorInfo {
   error: string;
   operationType: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write';
@@ -154,6 +154,89 @@ interface Workout {
 }
 
 // --- Components ---
+
+const MUSCLE_GROUPS = [
+  'Neck', 'Shoulders', 'Chest', 'Lats', 
+  'Middle Back', 'Lower Back', 'Abs', 'Obliques',
+  'Biceps', 'Triceps', 'Forearms', 
+  'Glutes', 'Quads', 'Hamstrings', 'Calves'
+];
+
+const AIRecoveryPlanner = ({ onClose, onWorkoutGenerated }: { onClose: () => void, onWorkoutGenerated: (workout: any) => void }) => {
+  const [soreMuscles, setSoreMuscles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const toggleMuscle = (m: string) => {
+    setSoreMuscles(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+  };
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    const result = await generateRecoveryWorkout(soreMuscles);
+    setLoading(false);
+    if (result) {
+      onWorkoutGenerated(result);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4 overflow-y-auto">
+      <motion.div 
+        initial={{ y: 100 }} 
+        animate={{ y: 0 }}
+        className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-[32px] p-8 shadow-2xl my-auto"
+      >
+        <div className="flex items-center gap-3 mb-6">
+           <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
+             <BrainCircuit size={20} />
+           </div>
+           <div>
+             <h2 className="text-xl font-bold text-white tracking-tight">AI Recovery Planner</h2>
+             <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Select Sore Muscles</p>
+           </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-2 mb-8">
+          {MUSCLE_GROUPS.map(m => {
+            const isSore = soreMuscles.includes(m);
+            return (
+              <button
+                key={m}
+                onClick={() => toggleMuscle(m)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                  isSore 
+                    ? "bg-rose-500/20 border-rose-500/50 text-rose-400 font-bold" 
+                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400/70 hover:bg-emerald-500/20 hover:text-emerald-400"
+                )}
+              >
+                {m} {isSore ? '🔥' : '✅'}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex gap-4">
+          <button 
+            onClick={onClose} 
+            disabled={loading}
+            className="flex-1 text-zinc-500 font-bold py-4 text-sm hover:text-zinc-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleGenerate}
+            disabled={loading}
+            className="flex-1 bg-white text-zinc-950 font-bold py-4 rounded-2xl text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? <div className="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" /> : <BrainCircuit size={16} />}
+            {loading ? 'Analyzing...' : 'Generate Plan'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 const Card = ({ children, className, title }: { children: React.ReactNode, className?: string, title?: string, key?: React.Key }) => (
   <div className={cn("glass-card rounded-2xl p-5 mb-4", className)}>
@@ -522,6 +605,7 @@ const Dashboard = ({ user, metrics, workouts, userGoals }: { user: User, metrics
 const Workouts = ({ user }: { user: User, key?: React.Key }) => {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [isLogging, setIsLogging] = useState(false);
+  const [isAIPlannerOpen, setIsAIPlannerOpen] = useState(false);
   
   // Form State
   const [workoutType, setWorkoutType] = useState<'lifting' | 'cardio'>('lifting');
@@ -623,12 +707,21 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
     >
       <div className="flex justify-between items-center mb-8 px-1">
         <h1 className="text-2xl font-bold tracking-tight text-white">Log Session</h1>
-        <button 
-          onClick={() => setIsLogging(true)}
-          className="bg-white text-zinc-950 px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 active:scale-95 transition-all shadow-xl hover:bg-zinc-200"
-        >
-          <Plus size={14} /> New Entry
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsAIPlannerOpen(true)}
+            className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-all outline-none"
+            title="AI Recovery Workout"
+          >
+            <BrainCircuit size={16} />
+          </button>
+          <button 
+            onClick={() => setIsLogging(true)}
+            className="bg-white text-zinc-950 px-4 h-9 rounded-xl text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xl hover:bg-zinc-200"
+          >
+            <Plus size={14} /> New Log
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -673,6 +766,30 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
           </div>
         )}
       </div>
+
+      {isAIPlannerOpen && (
+        <AIRecoveryPlanner 
+          onClose={() => setIsAIPlannerOpen(false)}
+          onWorkoutGenerated={(aiWorkout) => {
+            setIsAIPlannerOpen(false);
+            
+            // Populate the Quick Log Form and open it
+            setWorkoutType(aiWorkout.type || 'lifting');
+            setWorkoutName(aiWorkout.name || 'AI Recovery Session');
+            if (aiWorkout.exercises && Array.isArray(aiWorkout.exercises)) {
+              setCurrentExercises(aiWorkout.exercises.map((e: any) => ({
+                name: e.name || 'Unknown',
+                weight: e.weight || 0,
+                reps: e.reps || 0,
+                unit: e.unit || 'lbs'
+              })));
+            } else {
+              setCurrentExercises([]);
+            }
+            setIsLogging(true);
+          }}
+        />
+      )}
 
       {isLogging && (
         <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4 overflow-y-auto">
