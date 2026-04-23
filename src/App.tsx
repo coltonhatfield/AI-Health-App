@@ -250,62 +250,62 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
       </div>
 
       <Card title="Fueling & Nutrition">
-        <div className="grid grid-cols-2 gap-x-8 gap-y-4 mb-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4 mb-4">
           <div className="space-y-4">
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-6 rounded-full bg-orange-400/50 group-hover:bg-orange-400 transition-colors" />
-                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Energy</p>
+            <div className="flex items-center justify-between group gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-1 h-5 rounded-full bg-orange-400/50 group-hover:bg-orange-400 transition-colors shrink-0" />
+                <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Energy</p>
               </div>
-              <p className={cn("font-mono font-bold text-xs", caloriesValue > GOALS.calories ? "text-rose-500" : "text-white")}>
-                {caloriesValue} <span className="text-zinc-600 font-normal">/ {GOALS.calories}</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", caloriesValue > GOALS.calories ? "text-rose-500" : "text-white")}>
+                {caloriesValue} <span className="text-zinc-600 font-normal">/{GOALS.calories}</span>
               </p>
             </div>
             
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-6 rounded-full bg-emerald-400/50 group-hover:bg-emerald-400 transition-colors" />
-                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Protein</p>
+            <div className="flex items-center justify-between group gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-1 h-5 rounded-full bg-emerald-400/50 group-hover:bg-emerald-400 transition-colors shrink-0" />
+                <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Protein</p>
               </div>
-              <p className={cn("font-mono font-bold text-xs", proteinValue > GOALS.protein ? "text-emerald-500" : "text-white")}>
-                {proteinValue}g <span className="text-zinc-600 font-normal">/ {GOALS.protein}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", proteinValue > GOALS.protein ? "text-emerald-500" : "text-white")}>
+                {proteinValue}g <span className="text-zinc-600 font-normal">/{GOALS.protein}g</span>
               </p>
             </div>
 
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-6 rounded-full bg-blue-400/50 group-hover:bg-blue-400 transition-colors" />
-                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Carbs</p>
+            <div className="flex items-center justify-between group gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-1 h-5 rounded-full bg-blue-400/50 group-hover:bg-blue-400 transition-colors shrink-0" />
+                <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Carbs</p>
               </div>
-              <p className={cn("font-mono font-bold text-xs", carbsValue > GOALS.carbs ? "text-rose-500" : "text-white")}>
-                {carbsValue}g <span className="text-zinc-600 font-normal">/ {GOALS.carbs}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", carbsValue > GOALS.carbs ? "text-rose-500" : "text-white")}>
+                {carbsValue}g <span className="text-zinc-600 font-normal">/{GOALS.carbs}g</span>
               </p>
             </div>
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-6 rounded-full bg-purple-400/50 group-hover:bg-purple-400 transition-colors" />
-                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Fiber</p>
+            <div className="flex items-center justify-between group gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-1 h-5 rounded-full bg-purple-400/50 group-hover:bg-purple-400 transition-colors shrink-0" />
+                <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Fiber</p>
               </div>
-              <p className={cn("font-mono font-bold text-xs", fiberValue > GOALS.fiber ? "text-rose-500" : "text-white")}>
-                {fiberValue}g <span className="text-zinc-600 font-normal">/ {GOALS.fiber}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", fiberValue > GOALS.fiber ? "text-rose-500" : "text-white")}>
+                {fiberValue}g <span className="text-zinc-600 font-normal">/{GOALS.fiber}g</span>
               </p>
             </div>
             
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-6 rounded-full bg-rose-400/50 group-hover:bg-rose-400 transition-colors" />
-                <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Sugar</p>
+            <div className="flex items-center justify-between group gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-1 h-5 rounded-full bg-rose-400/50 group-hover:bg-rose-400 transition-colors shrink-0" />
+                <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Sugar</p>
               </div>
-              <p className={cn("font-mono font-bold text-xs", sugarValue > GOALS.sugar ? "text-rose-500" : "text-white")}>
-                {sugarValue}g <span className="text-zinc-600 font-normal">/ {GOALS.sugar}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", sugarValue > GOALS.sugar ? "text-rose-500" : "text-white")}>
+                {sugarValue}g <span className="text-zinc-600 font-normal">/{GOALS.sugar}g</span>
               </p>
             </div>
 
-            <div className="h-6 flex items-center justify-end px-1">
-               <p className="text-[9px] uppercase font-black tracking-widest text-zinc-700 italic">Athlete Profile: Active</p>
+            <div className="h-5 flex items-center justify-end px-0.5">
+               <p className="text-[8px] uppercase font-black tracking-tighter text-zinc-700 italic">Static Context: CLB-VB</p>
             </div>
           </div>
         </div>
