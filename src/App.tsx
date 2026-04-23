@@ -178,19 +178,23 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
       </header>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <MetricTile icon={Activity} label="Readiness" value={latest('resting_energy') > 0 ? "88" : "--"} unit="/ 100" color="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" />
+        <MetricTile icon={Activity} label="Readiness" value={latest('resting_energy') > 0 || latest('basal_energy_burned') > 0 ? "88" : "--"} unit="/ 100" color="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" />
         <MetricTile icon={Flame} label="Active Burn" value={Math.round(latest('active_energy'))} unit="kcal" color="bg-blue-500/20 text-blue-400 border border-blue-500/30" />
-        <MetricTile icon={Zap} label="Protein" value={latest('protein')} unit="g" color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" />
-        <MetricTile icon={TrendingUp} label="Steps" value={latest('step_count') || latest('steps') || 0} unit="steps" color="bg-orange-500/20 text-orange-400 border border-orange-500/30" />
+        <MetricTile icon={Zap} label="Basal Burn" value={Math.round(latest('basal_energy_burned'))} unit="kcal" color="bg-orange-500/20 text-orange-400 border border-orange-500/30" />
+        <MetricTile icon={TrendingUp} label="Steps" value={latest('step_count') || latest('steps') || 0} unit="steps" color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" />
       </div>
 
       <Card title="Fueling & Nutrition">
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
           <div className="text-center">
             <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Carbs</p>
             <p className="text-white font-mono font-bold">{Math.round(latest('carbohydrates'))}g</p>
           </div>
           <div className="text-center border-x border-zinc-800">
+            <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Protein</p>
+            <p className="text-white font-mono font-bold">{Math.round(latest('protein'))}g</p>
+          </div>
+          <div className="text-center border-r border-zinc-800">
             <p className="text-zinc-500 text-[10px] uppercase font-bold mb-1">Fiber</p>
             <p className="text-white font-mono font-bold">{Math.round(latest('fiber'))}g</p>
           </div>
@@ -204,7 +208,18 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
              <p className="text-zinc-500 text-[10px] uppercase font-bold">Total Energy Intake</p>
              <p className="text-white font-bold">{Math.round(latest('dietary_energy'))} <span className="text-zinc-500 text-xs">kcal</span></p>
            </div>
-           <MetricTile icon={Weight} label="Body Mass" value={latest('weight') || latest('body_mass') || 0} unit="lbs" color="bg-zinc-700/50" />
+           <div className="flex gap-4">
+             {latest('height') > 0 && (
+               <div className="text-right">
+                 <p className="text-zinc-500 text-[10px] uppercase font-bold">Height</p>
+                 <p className="text-white font-bold">{latest('height')} <span className="text-zinc-500 text-[10px]">in</span></p>
+               </div>
+             )}
+             <div className="text-right">
+               <p className="text-zinc-500 text-[10px] uppercase font-bold">Weight</p>
+               <p className="text-white font-bold">{latest('weight') || latest('body_mass') || 0} <span className="text-zinc-500 text-[10px]">lbs</span></p>
+             </div>
+           </div>
         </div>
       </Card>
 

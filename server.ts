@@ -91,6 +91,9 @@ async function startServer() {
 
       console.log(`Processing health data for user: ${userId}`);
       console.log("Raw Payload Keys:", Object.keys(payload));
+      if (payload.data) {
+        console.log("Data Keys:", Object.keys(payload.data));
+      }
       
       const metrics = payload.data?.metrics || [];
       console.log(`Received ${metrics.length} metrics from Shortcuts.`);
