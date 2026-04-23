@@ -5,12 +5,25 @@ import fs from "fs";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import OpenAI from "openai";
+import dotenv from "dotenv";
 
-// Initialize OpenAI for Groq
-const groq = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY || "", 
-  baseURL: "https://api.groq.com/openai/v1",
-});
+// Load environment variables from .env or .env.local
+dotenv.config();
+dotenv.config({ path: ".env.local", override: true });
+
+// Initialize OpenAI for Groq lazily or ensure it picks up the key
+const getGroq = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("Warning: GEMINI_API_KEY not found in environment.");
+  }
+  return new OpenAI({
+    apiKey: apiKey || "", 
+    baseURL: "https://api.groq.com/openai/v1",
+  });
+};
+
+const groq = getGroq();
 
 // Load Firebase Config safely
 const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
