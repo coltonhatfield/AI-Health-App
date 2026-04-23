@@ -191,6 +191,50 @@ async function startServer() {
     }
   });
 
+  // API Route to Wipe User Data
+  app.delete("/api/clear-data", async (req, res) => {
+    try {
+      if (!db) {
+        return res.status(500).json({ error: "Database not initialized" });
+      }
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "userId query parameter is required" });
+      }
+
+      console.log(`Wiping all data for user: ${userId}`);
+      
+      const collections = ['health_metrics', 'workouts'];
+      let totalDeleted = 0;
+
+      for (const collName of collections) {
+        const collectionRef = db.collection(collName);
+        const query = collectionRef.where('userId', '==', userId);
+        
+        // Deleting in chunks to stay within batch limits
+        let count = 0;
+        while (true) {
+          const snapshot = await query.limit(500).get();
+          if (snapshot.empty) break;
+          
+          const batch = db.batch();
+          snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+            count++;
+          });
+          await batch.commit();
+          console.log(`Deleted chunk of ${snapshot.docs.length} from ${collName}`);
+        }
+        totalDeleted += count;
+      }
+
+      res.json({ status: "success", deletedCount: totalDeleted });
+    } catch (error) {
+      console.error("Error wiping user data:", error);
+      res.status(500).json({ error: "Wipe failed" });
+    }
+  });
+
   // API Route for AI Insights (Groq)
   app.post("/api/ai-insights", async (req, res) => {
     try {

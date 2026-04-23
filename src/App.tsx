@@ -723,17 +723,21 @@ export default function App() {
                 <div className="space-y-3">
                   <button 
                     onClick={async () => {
-                      if (!confirm("Are you sure you want to delete ALL your metrics? This cannot be undone.")) return;
+                      if (!confirm("Are you sure you want to delete ALL your metrics and history? This will perform a deep wipe of your database.")) return;
                       
-                      const batch = writeBatch(db);
-                      const mDocs = metrics.map(m => doc(db, 'health_metrics', m.id));
-                      const wDocs = workouts.map(w => doc(db, 'workouts', w.id));
-                      
-                      mDocs.forEach(d => batch.delete(d));
-                      wDocs.forEach(d => batch.delete(d));
-                      
-                      await batch.commit();
-                      alert("Database successfully cleared.");
+                      try {
+                        const res = await fetch(`/api/clear-data?userId=${user.uid}`, {
+                          method: 'DELETE'
+                        });
+                        if (res.ok) {
+                          alert("Database wiped successfully.");
+                        } else {
+                          throw new Error("Wipe failed on server.");
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        alert("Failed to clear data completely.");
+                      }
                     }}
                     className="w-full bg-rose-500/10 border border-rose-500/20 py-3 rounded-xl text-sm font-bold text-rose-500 active:scale-95 transition-transform"
                   >
