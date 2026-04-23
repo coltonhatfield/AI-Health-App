@@ -8,7 +8,18 @@
         "uid": { "type": "string" },
         "email": { "type": "string" },
         "displayName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "goals": {
+          "type": "object",
+          "properties": {
+            "steps": { "type": "number" },
+            "calories": { "type": "number" },
+            "protein": { "type": "number" },
+            "carbs": { "type": "number" },
+            "fiber": { "type": "number" },
+            "sugar": { "type": "number" }
+          }
+        }
       },
       "required": ["uid", "email"]
     },
@@ -60,7 +71,9 @@
                   "properties": {
                     "reps": { "type": "number" },
                     "weight": { "type": "number" },
-                    "unit": { "type": "string" }
+                    "unit": { "type": "string" },
+                    "duration": { "type": "number" },
+                    "distance": { "type": "number" }
                   }
                 }
               }

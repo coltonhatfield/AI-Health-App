@@ -13,7 +13,8 @@ import {
   Flame,
   ChevronRight,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -23,11 +24,13 @@ import {
   where, 
   orderBy, 
   limit, 
-  addDoc, 
+  addDoc,
+  deleteDoc, 
   serverTimestamp,
   Timestamp,
   writeBatch,
-  doc
+  doc,
+  setDoc
 } from 'firebase/firestore';
 import { 
   signInWithPopup, 
@@ -48,7 +51,9 @@ import {
   Tooltip, 
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  BarChart,
+  Bar
 } from 'recharts';
 import { getAIRecommendations } from './services/geminiService';
 interface FirestoreErrorInfo {
@@ -70,14 +75,26 @@ import {
 } from './components/ProgressRings';
 
 // --- Constants ---
-const GOALS = {
-  steps: 12000,     // Adjusted for active college student
-  calories: 2900,  // TDEE for 165lb athlete with 3-4 workouts
-  protein: 170,    // High protein for muscle maintenance
-  carbs: 350,      // High carb for explosive performance (volleyball)
+const DEFAULT_GOALS = {
+  steps: 12000,
+  calories: 2900,
+  protein: 170,
+  carbs: 350,
   fiber: 35,
-  sugar: 50,       // Strict sugar limit
+  sugar: 50,
 };
+
+// --- Types ---
+type Tab = 'dashboard' | 'workouts' | 'progression' | 'insights' | 'profile';
+
+interface UserGoals {
+  steps: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fiber: number;
+  sugar: number;
+}
 
 function handleFirestoreError(error: any, operationType: FirestoreErrorInfo['operationType'], path: string | null = null) {
   const authInfo = auth.currentUser ? {
@@ -106,11 +123,7 @@ function handleFirestoreError(error: any, operationType: FirestoreErrorInfo['ope
   };
 
   console.error("Firestore Error:", JSON.stringify(info, null, 2));
-  // In a real app we might show a toast here
 }
-
-// --- Types ---
-type Tab = 'dashboard' | 'workouts' | 'insights' | 'profile';
 
 interface HealthMetric {
   id: string;
@@ -171,7 +184,7 @@ const MetricTile = ({ icon: Icon, label, value, unit, color, percentage }: { ico
   </div>
 );
 
-const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMetric[], workouts: Workout[], key?: React.Key }) => {
+const Dashboard = ({ user, metrics, workouts, userGoals }: { user: User, metrics: HealthMetric[], workouts: Workout[], userGoals: UserGoals, key?: React.Key }) => {
   // Extract latest metrics for the current day
   const latest = (types: string | string[]) => {
     const typeArray = Array.isArray(types) ? types : [types];
@@ -204,11 +217,11 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
   const sugarValue = Math.round(latest(['dietary_sugar', 'sugar']));
 
   const nutritionMetrics = [
-    { label: 'Calories', value: caloriesValue, goal: GOALS.calories, color: '#fb923c', exceededColor: '#fb7185' },
-    { label: 'Protein', value: proteinValue, goal: GOALS.protein, color: '#10b981', exceededColor: '#34d399' },
-    { label: 'Carbs', value: carbsValue, goal: GOALS.carbs, color: '#3b82f6', exceededColor: '#60a5fa' },
-    { label: 'Fiber', value: fiberValue, goal: GOALS.fiber, color: '#a855f7', exceededColor: '#c084fc' },
-    { label: 'Sugar', value: sugarValue, goal: GOALS.sugar, color: '#f43f5e', exceededColor: '#ef4444' },
+    { label: 'Calories', value: caloriesValue, goal: userGoals.calories, color: '#fb923c', exceededColor: '#fb7185' },
+    { label: 'Protein', value: proteinValue, goal: userGoals.protein, color: '#10b981', exceededColor: '#34d399' },
+    { label: 'Carbs', value: carbsValue, goal: userGoals.carbs, color: '#3b82f6', exceededColor: '#60a5fa' },
+    { label: 'Fiber', value: fiberValue, goal: userGoals.fiber, color: '#a855f7', exceededColor: '#c084fc' },
+    { label: 'Sugar', value: sugarValue, goal: userGoals.sugar, color: '#f43f5e', exceededColor: '#ef4444' },
   ];
 
   return (
@@ -245,7 +258,7 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
           value={stepsValue} 
           unit="steps" 
           color="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" 
-          percentage={(stepsValue / GOALS.steps) * 100}
+          percentage={(stepsValue / userGoals.steps) * 100}
         />
       </div>
 
@@ -257,8 +270,8 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1 h-5 rounded-full bg-orange-400/50 group-hover:bg-orange-400 transition-colors shrink-0" />
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Energy</p>
               </div>
-              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", caloriesValue > GOALS.calories ? "text-rose-500" : "text-white")}>
-                {caloriesValue} <span className="text-zinc-600 font-normal">/{GOALS.calories}</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", caloriesValue > userGoals.calories ? "text-rose-500" : "text-white")}>
+                {caloriesValue} <span className="text-zinc-600 font-normal">/{userGoals.calories}</span>
               </p>
             </div>
             
@@ -267,8 +280,8 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1 h-5 rounded-full bg-emerald-400/50 group-hover:bg-emerald-400 transition-colors shrink-0" />
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Protein</p>
               </div>
-              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", proteinValue > GOALS.protein ? "text-emerald-500" : "text-white")}>
-                {proteinValue}g <span className="text-zinc-600 font-normal">/{GOALS.protein}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", proteinValue > userGoals.protein ? "text-emerald-500" : "text-white")}>
+                {proteinValue}g <span className="text-zinc-600 font-normal">/{userGoals.protein}g</span>
               </p>
             </div>
 
@@ -277,8 +290,8 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1 h-5 rounded-full bg-blue-400/50 group-hover:bg-blue-400 transition-colors shrink-0" />
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Carbs</p>
               </div>
-              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", carbsValue > GOALS.carbs ? "text-rose-500" : "text-white")}>
-                {carbsValue}g <span className="text-zinc-600 font-normal">/{GOALS.carbs}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", carbsValue > userGoals.carbs ? "text-rose-500" : "text-white")}>
+                {carbsValue}g <span className="text-zinc-600 font-normal">/{userGoals.carbs}g</span>
               </p>
             </div>
           </div>
@@ -289,8 +302,8 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1 h-5 rounded-full bg-purple-400/50 group-hover:bg-purple-400 transition-colors shrink-0" />
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Fiber</p>
               </div>
-              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", fiberValue > GOALS.fiber ? "text-rose-500" : "text-white")}>
-                {fiberValue}g <span className="text-zinc-600 font-normal">/{GOALS.fiber}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", fiberValue > userGoals.fiber ? "text-rose-500" : "text-white")}>
+                {fiberValue}g <span className="text-zinc-600 font-normal">/{userGoals.fiber}g</span>
               </p>
             </div>
             
@@ -299,8 +312,8 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
                 <div className="w-1 h-5 rounded-full bg-rose-400/50 group-hover:bg-rose-400 transition-colors shrink-0" />
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-tight truncate">Sugar</p>
               </div>
-              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", sugarValue > GOALS.sugar ? "text-rose-500" : "text-white")}>
-                {sugarValue}g <span className="text-zinc-600 font-normal">/{GOALS.sugar}g</span>
+              <p className={cn("font-mono font-bold text-[10px] whitespace-nowrap", sugarValue > userGoals.sugar ? "text-rose-500" : "text-white")}>
+                {sugarValue}g <span className="text-zinc-600 font-normal">/{userGoals.sugar}g</span>
               </p>
             </div>
 
@@ -368,7 +381,7 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
             </div>
             <div className="text-right">
                <span className="text-zinc-400 text-xs font-mono">
-                  {w.type === 'lifting' ? `${w.exercises[0]?.weight || 0}lbs` : `${w.exercises[0]?.duration || 0}m`}
+                  {w.type === 'lifting' ? `${w.exercises[0]?.weight || 0}lbs` : `${w.exercises[0]?.distance ? w.exercises[0].distance + 'mi' : (w.exercises[0]?.duration || 0) + 'm'}`}
                </span>
             </div>
           </div>
@@ -388,6 +401,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
   // Form State
   const [workoutType, setWorkoutType] = useState<'lifting' | 'cardio'>('lifting');
   const [workoutName, setWorkoutName] = useState('');
+  const [workoutDate, setWorkoutDate] = useState<string>(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [currentExercises, setCurrentExercises] = useState<any[]>([]);
   
   // Temp fields for adding to currentExercises
@@ -395,8 +409,10 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
   const [tempWeight, setTempWeight] = useState('');
   const [tempReps, setTempReps] = useState('');
   const [tempDuration, setTempDuration] = useState('');
+  const [tempDistance, setTempDistance] = useState('');
   
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(
@@ -422,7 +438,8 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
       unit: 'lbs'
     } : {
       name: tempExerciseName,
-      duration: parseInt(tempDuration) || 0
+      duration: parseInt(tempDuration) || 0,
+      distance: parseFloat(tempDistance) || 0
     };
 
     setCurrentExercises([...currentExercises, newEx]);
@@ -430,6 +447,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
     setTempWeight('');
     setTempReps('');
     setTempDuration('');
+    setTempDistance('');
   };
 
   const saveWorkout = async () => {
@@ -440,18 +458,34 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
         userId: user.uid,
         name: workoutName,
         type: workoutType,
-        date: serverTimestamp(),
+        date: workoutDate ? Timestamp.fromDate(new Date(workoutDate)) : serverTimestamp(),
         exercises: currentExercises
       };
       await addDoc(collection(db, 'workouts'), workoutData);
       setIsLogging(false);
       // Reset form
       setWorkoutName('');
+      setWorkoutDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
       setCurrentExercises([]);
     } catch (error) {
       handleFirestoreError(error, 'create', 'workouts');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteWorkout = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (deletingId !== id) {
+      setDeletingId(id);
+      setTimeout(() => setDeletingId(null), 3000);
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'workouts', id));
+      setDeletingId(null);
+    } catch (error) {
+      handleFirestoreError(error, 'delete', 'workouts');
     }
   };
 
@@ -475,11 +509,25 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
       <div className="space-y-4">
         {workouts.map((w) => (
           <Card key={w.id} className={cn("border-l-2", w.type === 'cardio' ? "border-l-emerald-500" : "border-l-blue-500")}>
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-white font-bold tracking-tight">{w.name}</h3>
-              <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">
-                {w.date ? format(w.date.toDate(), 'MMM d') : '...ing'}
-              </span>
+            <div className="flex justify-between items-start mb-2 group-header">
+              <div>
+                <h3 className="text-white font-bold tracking-tight">{w.name}</h3>
+                <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">
+                  {w.date ? format(w.date.toDate(), 'MMM d, h:mm a') : '...ing'}
+                </span>
+              </div>
+              <button 
+                onClick={(e) => deleteWorkout(w.id, e)}
+                className={cn(
+                  "transition-colors p-1 rounded-md",
+                  deletingId === w.id 
+                    ? "bg-rose-500 text-white" 
+                    : "text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10"
+                )}
+                title={deletingId === w.id ? "Click again to confirm" : "Delete Session"}
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
             <p className="text-zinc-400 text-sm mb-4">
               {w.exercises.length} {w.type === 'cardio' ? 'activity' : 'exercises'} tracked
@@ -487,7 +535,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
             <div className="flex flex-wrap gap-2">
               {w.exercises.map((e, idx) => (
                 <span key={idx} className="bg-zinc-800/50 text-zinc-300 px-2.5 py-1 rounded-lg text-[10px] border border-zinc-700/50 font-medium">
-                  {e.name} {w.type === 'cardio' ? `(${e.duration} min)` : `(${e.weight}lbs x ${e.reps})`}
+                  {e.name} {w.type === 'cardio' ? `(${e.distance ? e.distance + 'mi, ' : ''}${e.duration} min)` : `(${e.weight}lbs x ${e.reps})`}
                 </span>
               ))}
             </div>
@@ -536,6 +584,16 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
                   />
                </div>
 
+               <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase text-zinc-500 font-bold tracking-widest">Date & Time</label>
+                  <input 
+                    type="datetime-local"
+                    value={workoutDate}
+                    onChange={(e) => setWorkoutDate(e.target.value)}
+                    className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all [color-scheme:dark]"
+                  />
+               </div>
+
                <div className="bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800/50">
                   <p className="text-[10px] uppercase text-zinc-500 font-bold tracking-widest mb-3">Add Entry</p>
                   <div className="space-y-4">
@@ -552,7 +610,10 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
                         <input type="number" value={tempReps} onChange={(e) => setTempReps(e.target.value)} placeholder="Reps" className="bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
                       </div>
                     ) : (
-                      <input type="number" value={tempDuration} onChange={(e) => setTempDuration(e.target.value)} placeholder="Duration (mins)" className="w-full bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="number" value={tempDistance} onChange={(e) => setTempDistance(e.target.value)} placeholder="Distance (miles)" className="w-full bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
+                        <input type="number" value={tempDuration} onChange={(e) => setTempDuration(e.target.value)} placeholder="Duration (mins)" className="w-full bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
+                      </div>
                     )}
 
                     <button 
@@ -572,7 +633,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
                         <div key={i} className="flex justify-between items-center bg-zinc-800/40 px-3 py-2 rounded-lg border border-zinc-800/50">
                            <span className="text-zinc-200 text-xs font-medium">{ex.name}</span>
                            <span className="text-zinc-500 text-[10px] font-mono">
-                             {workoutType === 'lifting' ? `${ex.weight}lbs x ${ex.reps}` : `${ex.duration}m`}
+                             {workoutType === 'lifting' ? `${ex.weight}lbs x ${ex.reps}` : `${ex.distance ? ex.distance + 'mi, ' : ''}${ex.duration}m`}
                            </span>
                         </div>
                       ))}
@@ -680,16 +741,140 @@ const Insights = ({ user, metrics }: { user: User, metrics: HealthMetric[], key?
   );
 };
 
+const Progression = ({ workouts }: { workouts: Workout[], key?: React.Key }) => {
+  const trackingKeys = ['Squat', 'Bench Press', 'Deadlift', '3 Mile Run'];
+  const exerciseData: Record<string, {date: string, val: number, _dateDate: Date}[]> = {
+    'Squat': [],
+    'Bench Press': [],
+    'Deadlift': [],
+    '3 Mile Run': []
+  };
+  
+  workouts.forEach(w => {
+    const dateStr = w.date ? format(w.date.toDate(), 'MMM d') : 'Now';
+    
+    w.exercises.forEach(ex => {
+      if (!ex || !ex.name) return;
+      const name = ex.name.trim().toLowerCase();
+      
+      if (w.type === 'lifting') {
+        if (name.includes('squat') && ex.weight > 0) {
+          exerciseData['Squat'].push({ date: dateStr, val: ex.weight, _dateDate: w.date ? w.date.toDate() : new Date() });
+        } else if (name.includes('bench') && ex.weight > 0) {
+          exerciseData['Bench Press'].push({ date: dateStr, val: ex.weight, _dateDate: w.date ? w.date.toDate() : new Date() });
+        } else if (name.includes('deadlift') && ex.weight > 0) {
+          exerciseData['Deadlift'].push({ date: dateStr, val: ex.weight, _dateDate: w.date ? w.date.toDate() : new Date() });
+        }
+      } else if (w.type === 'cardio') {
+        // Track 3 mile runs (allow margin of 2.8 to 3.2 miles)
+        if (name.includes('run') && ex.distance >= 2.8 && ex.distance <= 3.2 && ex.duration > 0) {
+          exerciseData['3 Mile Run'].push({ date: dateStr, val: ex.duration, _dateDate: w.date ? w.date.toDate() : new Date() });
+        }
+      }
+    });
+  });
+
+  const prs = trackingKeys.map(key => {
+    const historical = exerciseData[key].sort((a, b) => a._dateDate.getTime() - b._dateDate.getTime());
+    if (historical.length === 0) return null;
+
+    const isRun = key === '3 Mile Run';
+    const bestVal = isRun ? Math.min(...historical.map(h => h.val)) : Math.max(...historical.map(h => h.val));
+    const unit = isRun ? 'mins' : 'lbs';
+    
+    const chartDataMap = new Map();
+    historical.forEach(h => {
+      if (!chartDataMap.has(h.date)) {
+        chartDataMap.set(h.date, h.val);
+      } else {
+        const existing = chartDataMap.get(h.date);
+        chartDataMap.set(h.date, isRun ? Math.min(existing, h.val) : Math.max(existing, h.val));
+      }
+    });
+
+    const chartData = Array.from(chartDataMap.entries()).map(([date, val]) => ({ date, val }));
+
+    return {
+      name: key,
+      bestVal,
+      unit,
+      data: chartData,
+      count: historical.length,
+      isRun
+    };
+  }).filter((pr): pr is NonNullable<typeof pr> => pr !== null);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }} 
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      className="pb-24"
+    >
+      <div className="flex justify-between items-center mb-8 px-1">
+        <h1 className="text-2xl font-bold tracking-tight text-white line-clamp-1">PR Tracker</h1>
+      </div>
+
+      {prs.length === 0 ? (
+        <div className="text-center py-24 bg-zinc-900/30 rounded-3xl border border-dashed border-zinc-800">
+           <TrendingUp className="mx-auto text-zinc-800 mb-4" size={48} />
+           <p className="text-zinc-600 font-medium italic">Log one of your core tracking targets to see charts. (Squat, Bench, Deadlift, or 3 Mile Run).</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {prs.map((pr, idx) => (
+            <Card key={idx} title={`${pr.name} (${pr.isRun ? 'Fastest' : 'Max Weight'})`}>
+              <div className="flex justify-between items-end mb-4">
+                <span className="text-2xl font-black text-blue-400">{pr.bestVal} <span className="text-sm text-zinc-500 font-medium">{pr.unit}</span></span>
+              </div>
+              <div className="h-40 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={pr.data}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" opacity={0.3} />
+                    <XAxis dataKey="date" stroke="#52525b" fontSize={10} axisLine={false} tickLine={false} />
+                    <YAxis hide domain={['dataMin - (dataMin * 0.2)', 'dataMax + (dataMax * 0.2)']} />
+                    <Tooltip 
+                      cursor={{fill: '#27272a', opacity: 0.2}}
+                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px', fontSize: '12px' }}
+                      itemStyle={{ color: '#60a5fa' }}
+                    />
+                    <Bar dataKey="val" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [userGoals, setUserGoals] = useState<UserGoals>(DEFAULT_GOALS);
+  const [isEditingGoals, setIsEditingGoals] = useState(false);
+  const [tempGoals, setTempGoals] = useState<UserGoals>(DEFAULT_GOALS);
+  const [confirmWipe, setConfirmWipe] = useState(false);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
+        // Fetch user goals
+        onSnapshot(doc(db, 'users', u.uid), (docSnap) => {
+          if (docSnap.exists() && docSnap.data().goals) {
+            setUserGoals(docSnap.data().goals);
+            setTempGoals(docSnap.data().goals);
+          } else {
+            // Document might not exist or goals not set, write defaults
+            setDoc(doc(db, 'users', u.uid), { goals: DEFAULT_GOALS }, { merge: true }).catch(e => console.error("Could not set default goals", e));
+          }
+        });
+
         // Fetch metrics
         const mq = query(
           collection(db, 'health_metrics'),
@@ -708,7 +893,7 @@ export default function App() {
           collection(db, 'workouts'),
           where('userId', '==', u.uid),
           orderBy('date', 'desc'),
-          limit(10)
+          limit(150)
         );
         onSnapshot(wq, (snapshot) => {
           setWorkouts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workout)));
@@ -754,8 +939,9 @@ export default function App() {
       <div className="max-w-md mx-auto p-6 min-h-screen relative">
         
         <AnimatePresence mode="wait">
-          {activeTab === 'dashboard' && <Dashboard key="dash" user={user} metrics={metrics} workouts={workouts} />}
+          {activeTab === 'dashboard' && <Dashboard key="dash" user={user} metrics={metrics} workouts={workouts} userGoals={userGoals} />}
           {activeTab === 'workouts' && <Workouts key="work" user={user} />}
+          {activeTab === 'progression' && <Progression key="prog" workouts={workouts} />}
           {activeTab === 'insights' && <Insights key="ins" user={user} metrics={metrics} />}
           {activeTab === 'profile' && (
             <motion.div key="prof" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-24">
@@ -775,6 +961,49 @@ export default function App() {
                      Logout <LogOut size={16} />
                    </button>
                 </div>
+              </Card>
+
+              <Card title="Goals Configuration">
+                {isEditingGoals ? (
+                  <div className="space-y-3">
+                    {Object.keys(DEFAULT_GOALS).map((key) => (
+                      <div key={key} className="flex items-center justify-between">
+                        <span className="text-zinc-400 capitalize text-sm">{key}</span>
+                        <input 
+                          type="number" 
+                          value={tempGoals[key as keyof UserGoals]} 
+                          onChange={(e) => setTempGoals({...tempGoals, [key]: Number(e.target.value)})}
+                          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 w-24 text-right text-white text-sm"
+                        />
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-4">
+                      <button onClick={() => {setIsEditingGoals(false); setTempGoals(userGoals);}} className="flex-1 py-2 rounded-lg text-sm font-bold text-zinc-500 border border-zinc-800">Cancel</button>
+                      <button onClick={async () => {
+                        await setDoc(doc(db, 'users', user.uid), { goals: tempGoals }, { merge: true });
+                        setIsEditingGoals(false);
+                      }} className="flex-1 bg-white text-black py-2 rounded-lg text-sm font-bold">Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
+                        <p className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Steps</p>
+                        <p className="font-bold text-sm">{userGoals.steps}</p>
+                      </div>
+                      <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
+                        <p className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Calories</p>
+                        <p className="font-bold text-sm">{userGoals.calories}</p>
+                      </div>
+                      <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
+                        <p className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Protein</p>
+                        <p className="font-bold text-sm">{userGoals.protein}g</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsEditingGoals(true)} className="w-full bg-zinc-800 text-white font-bold py-2 rounded-lg text-xs uppercase tracking-widest hover:bg-zinc-700 transition">Edit Goals</button>
+                  </div>
+                )}
               </Card>
 
               <Card title="Database Accuracy Check">
@@ -826,25 +1055,28 @@ export default function App() {
                 <div className="space-y-3">
                   <button 
                     onClick={async () => {
-                      if (!confirm("Are you sure you want to delete ALL your metrics and history? This will perform a deep wipe of your database.")) return;
+                      if (!confirmWipe) {
+                        setConfirmWipe(true);
+                        setTimeout(() => setConfirmWipe(false), 3000);
+                        return;
+                      }
                       
                       try {
                         const res = await fetch(`/api/clear-data?userId=${user.uid}`, {
                           method: 'DELETE'
                         });
                         if (res.ok) {
-                          alert("Database wiped successfully.");
+                          setConfirmWipe(false);
                         } else {
                           throw new Error("Wipe failed on server.");
                         }
                       } catch (err) {
                         console.error(err);
-                        alert("Failed to clear data completely.");
                       }
                     }}
                     className="w-full bg-rose-500/10 border border-rose-500/20 py-3 rounded-xl text-sm font-bold text-rose-500 active:scale-95 transition-transform"
                   >
-                    Clear All My Data
+                    {confirmWipe ? "Click again to confirm wipe" : "Clear All My Data"}
                   </button>
                 </div>
               </Card>
@@ -867,9 +1099,10 @@ export default function App() {
 
         {/* Bottom Navigation */}
         <nav className="fixed bottom-0 left-0 right-0 p-4 pb-8 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none">
-          <div className="max-w-xs mx-auto bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 h-16 rounded-2xl flex items-center justify-around px-4 pointer-events-auto shadow-2xl">
+          <div className="max-w-[360px] mx-auto bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 h-16 rounded-2xl flex items-center justify-around px-2 pointer-events-auto shadow-2xl">
             <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={Activity} />
             <NavButton active={activeTab === 'workouts'} onClick={() => setActiveTab('workouts')} icon={Dumbbell} />
+            <NavButton active={activeTab === 'progression'} onClick={() => setActiveTab('progression')} icon={TrendingUp} />
             <NavButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={BrainCircuit} />
             <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={UserIcon} />
           </div>
