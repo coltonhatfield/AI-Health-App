@@ -204,7 +204,7 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
              <p className="text-zinc-500 text-[10px] uppercase font-bold">Total Energy Intake</p>
              <p className="text-white font-bold">{Math.round(latest('dietary_energy'))} <span className="text-zinc-500 text-xs">kcal</span></p>
            </div>
-           <MetricTile icon={Weight} label="Body Mass" value={latest('weight')} unit="kg" color="bg-zinc-700/50" />
+           <MetricTile icon={Weight} label="Body Mass" value={latest('weight') || latest('body_mass') || 0} unit="lbs" color="bg-zinc-700/50" />
         </div>
       </Card>
 
@@ -250,7 +250,7 @@ const Dashboard = ({ user, metrics, workouts }: { user: User, metrics: HealthMet
             </div>
             <div className="text-right">
                <span className="text-zinc-400 text-xs font-mono">
-                  {w.type === 'lifting' ? `${w.exercises[0]?.weight || 0}kg` : `${w.exercises[0]?.duration || 0}m`}
+                  {w.type === 'lifting' ? `${w.exercises[0]?.weight || 0}lbs` : `${w.exercises[0]?.duration || 0}m`}
                </span>
             </div>
           </div>
@@ -300,7 +300,8 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
     const newEx = workoutType === 'lifting' ? {
       name: tempExerciseName,
       weight: parseFloat(tempWeight) || 0,
-      reps: parseInt(tempReps) || 0
+      reps: parseInt(tempReps) || 0,
+      unit: 'lbs'
     } : {
       name: tempExerciseName,
       duration: parseInt(tempDuration) || 0
@@ -368,7 +369,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
             <div className="flex flex-wrap gap-2">
               {w.exercises.map((e, idx) => (
                 <span key={idx} className="bg-zinc-800/50 text-zinc-300 px-2.5 py-1 rounded-lg text-[10px] border border-zinc-700/50 font-medium">
-                  {e.name} {w.type === 'cardio' ? `(${e.duration} min)` : `(${e.weight}kg x ${e.reps})`}
+                  {e.name} {w.type === 'cardio' ? `(${e.duration} min)` : `(${e.weight}lbs x ${e.reps})`}
                 </span>
               ))}
             </div>
@@ -429,7 +430,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
                     
                     {workoutType === 'lifting' ? (
                       <div className="grid grid-cols-2 gap-3">
-                        <input type="number" value={tempWeight} onChange={(e) => setTempWeight(e.target.value)} placeholder="Weight (kg)" className="bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
+                        <input type="number" value={tempWeight} onChange={(e) => setTempWeight(e.target.value)} placeholder="Weight (lbs)" className="bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
                         <input type="number" value={tempReps} onChange={(e) => setTempReps(e.target.value)} placeholder="Reps" className="bg-zinc-900/50 border border-zinc-700/50 rounded-xl px-3 py-2 text-sm text-white outline-none" />
                       </div>
                     ) : (
@@ -453,7 +454,7 @@ const Workouts = ({ user }: { user: User, key?: React.Key }) => {
                         <div key={i} className="flex justify-between items-center bg-zinc-800/40 px-3 py-2 rounded-lg border border-zinc-800/50">
                            <span className="text-zinc-200 text-xs font-medium">{ex.name}</span>
                            <span className="text-zinc-500 text-[10px] font-mono">
-                             {workoutType === 'lifting' ? `${ex.weight}kg x ${ex.reps}` : `${ex.duration}m`}
+                             {workoutType === 'lifting' ? `${ex.weight}lbs x ${ex.reps}` : `${ex.duration}m`}
                            </span>
                         </div>
                       ))}

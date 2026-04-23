@@ -4,6 +4,13 @@ import path from "path";
 import fs from "fs";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import OpenAI from "openai";
+
+// Initialize OpenAI for Groq
+const groq = new OpenAI({
+  apiKey: process.env.GEMINI_API_KEY || "", 
+  baseURL: "https://api.groq.com/openai/v1",
+});
 
 // Load Firebase Config safely
 const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
@@ -70,19 +77,20 @@ async function startServer() {
       }
 
       console.log(`Processing health data for user: ${userId}`);
+      console.log("Raw Payload Keys:", Object.keys(payload));
       
       const metrics = payload.data?.metrics || [];
       console.log(`Received ${metrics.length} metrics from Shortcuts.`);
+
+      // Log specific interesting metrics for debugging
+      const specialMetrics = ['weight', 'height', 'body_mass', 'body_height'];
       
       let batch = db.batch();
       let count = 0;
 
-      for (const metric of metrics) {
-        if (!metric.name || !metric.data) {
-          console.warn(`Skipping metric with missing name or data:`, metric);
-          continue;
-        }
-
+      const processMetric = async (metric: any) => {
+        if (!metric.name || !metric.data) return;
+        
         const metricName = metric.name.toLowerCase().replace(/ /g, '_');
         const unit = metric.units || '';
         const dataPoints = metric.data || [];
@@ -90,7 +98,7 @@ async function startServer() {
         console.log(`- Metric "${metricName}": Found ${dataPoints.length} data points.`);
 
         for (const dp of dataPoints) {
-          if (!dp.qty || !dp.date) continue;
+          if (dp.qty === undefined || !dp.date) continue;
 
           const docRef = db.collection('health_metrics').doc();
           batch.set(docRef, {
@@ -100,14 +108,52 @@ async function startServer() {
             unit: unit,
             timestamp: admin.firestore.Timestamp.fromDate(new Date(dp.date)),
             source: "auto_health_export",
-            rawData: dp // Helpful for debugging source issues
+            rawData: dp
           });
           count++;
           
-          // Batch size limit is 500
           if (count % 500 === 0) {
             await batch.commit();
             batch = db.batch();
+          }
+        }
+      };
+
+      for (const metric of metrics) {
+        await processMetric(metric);
+      }
+
+      // Check if weight/height are outside the main metrics array (some apps do this)
+      const outsideData = payload.data || {};
+      const outsideMappings: Record<string, string> = {
+        'weight': 'weight',
+        'body_mass': 'weight',
+        'bodyMass': 'weight',
+        'height': 'height',
+        'body_height': 'height',
+        'heightMass': 'height' // Common typo in some shortcuts
+      };
+
+      for (const [key, normalizedName] of Object.entries(outsideMappings)) {
+        if (outsideData[key]) {
+          console.log(`Found outside metric: ${key} -> ${normalizedName}`);
+          const val = outsideData[key];
+          // Handle both { qty, units, date } and just a number
+          const qty = typeof val === 'object' ? val.qty : val;
+          const date = typeof val === 'object' ? val.date : new Date().toISOString();
+          const unit = typeof val === 'object' ? val.units : '';
+
+          if (qty !== undefined) {
+            const docRef = db.collection('health_metrics').doc();
+            batch.set(docRef, {
+              userId,
+              type: normalizedName,
+              value: Number(qty),
+              unit: unit,
+              timestamp: admin.firestore.Timestamp.fromDate(new Date(date)),
+              source: "auto_health_export_extra"
+            });
+            count++;
           }
         }
       }
@@ -121,6 +167,56 @@ async function startServer() {
     } catch (error) {
       console.error("Error receiving health data:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // API Route for AI Insights (Groq)
+  app.post("/api/ai-insights", async (req, res) => {
+    try {
+      const { metrics, workouts } = req.body;
+      
+      const prompt = `
+        You are a high-performance health and fitness coach. 
+        Analyze the health metrics and workout history provided below.
+        Specifically look for:
+        - Energy balance (Active vs Dietary energy)
+        - Macro-nutrient ratios (Protein, Carbs, Sugars) relative to weight
+        - Recovery status based on resting energy and activity
+        - Body composition trends (Weight/Height)
+        
+        Data:
+        Metrics: ${JSON.stringify(metrics)}
+        Workouts: ${JSON.stringify(workouts)}
+        
+        Provide 3 concise, highly actionable "Narrative Insights" for the user. 
+        Format your response as a JSON array of objects with exactly these keys: 'title', 'content', and 'category' (recovery, performance, or general).
+        Only return the JSON array, no other text.
+      `;
+
+      const completion = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile", // Or another Groq model
+        messages: [
+          { role: "system", content: "You are a specialized health analytics assistant that only outputs valid JSON arrays." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      });
+
+      const responseText = completion.choices[0].message.content || "[]";
+      // Groq with json_object mode requires the message to contain "json" and returns an object
+      // We'll parse and extract the array if it's wrapped
+      let result = JSON.parse(responseText);
+      if (!Array.isArray(result) && result.insights) {
+        result = result.insights;
+      } else if (!Array.isArray(result) && Object.keys(result).length === 1) {
+        result = Object.values(result)[0];
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Groq AI Error:", error);
+      res.status(500).json({ error: "AI processing failed" });
     }
   });
 
