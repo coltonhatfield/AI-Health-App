@@ -14,7 +14,8 @@ import {
   ChevronRight,
   LogOut,
   User as UserIcon,
-  Trash2
+  Trash2,
+  Droplet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -216,6 +217,30 @@ const Dashboard = ({ user, metrics, workouts, userGoals }: { user: User, metrics
   const fiberValue = Math.round(latest('fiber'));
   const sugarValue = Math.round(latest(['dietary_sugar', 'sugar']));
 
+  // Water Tracking calculation
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+  const todaysWater = metrics.filter(m => {
+    if (m.type !== 'water_intake' || !m.timestamp) return false;
+    const d = m.timestamp.toDate();
+    return d >= todayStart && d <= todayEnd;
+  }).reduce((sum, m) => sum + m.value, 0);
+
+  const handleAddWater = async (amount: number) => {
+    try {
+      await addDoc(collection(db, 'health_metrics'), {
+        userId: user.uid,
+        source: 'manual',
+        type: 'water_intake',
+        value: amount,
+        unit: 'oz',
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, 'create', 'health_metrics');
+    }
+  };
+
   // Consistency Heatmap logic (last 35 days)
   const todayForHeatmap = new Date();
   const heatmapData = Array.from({ length: 35 }).map((_, i) => {
@@ -268,7 +293,47 @@ const Dashboard = ({ user, metrics, workouts, userGoals }: { user: User, metrics
       <div className="grid grid-cols-2 gap-4 mb-6">
         <MetricTile icon={Activity} label="Readiness" value={latest(['resting_energy', 'basal_energy_burned']) > 0 ? "88" : "--"} unit="/ 100" color="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" />
         <MetricTile icon={Flame} label="Active Burn" value={Math.round(latest('active_energy'))} unit="kcal" color="bg-blue-500/20 text-blue-400 border border-blue-500/30" />
-        <MetricTile icon={Zap} label="Basal Burn" value={Math.round(latest('basal_energy_burned'))} unit="kcal" color="bg-orange-500/20 text-orange-400 border border-orange-500/30" />
+        
+        {/* Water Tracker Tile */}
+        <div className={cn("glass-card p-3.5 rounded-2xl flex flex-col justify-between aspect-square relative overflow-hidden group transition-all", todaysWater >= 128 ? "bg-emerald-500/10 border-emerald-500/30" : "bg-cyan-500/10 border-cyan-500/20")}>
+          <div className="flex justify-between items-start">
+            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center relative z-10", todaysWater >= 128 ? "bg-emerald-500/20 text-emerald-400" : "bg-cyan-500/20 text-cyan-400")}>
+              <Droplet size={19} className="text-current" />
+            </div>
+            <ProgressRing 
+              size={36} 
+              strokeWidth={4} 
+              percentage={Math.min((todaysWater / 128) * 100, 100)} 
+              color="currentColor" 
+              className={todaysWater >= 128 ? "text-emerald-500" : "text-cyan-400"} 
+            />
+          </div>
+          <div className="relative z-10 pt-1 flex flex-col">
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">Water Intake</p>
+            <div className="flex items-baseline gap-1">
+              <span className="stat-value text-2xl font-bold text-white tracking-tighter">{todaysWater}</span>
+              <span className="text-zinc-500 text-[10px] uppercase font-bold">/ 128 oz</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 mt-auto pt-2 relative z-10">
+            <button 
+              onClick={() => handleAddWater(12)}
+              className={cn("text-[8px] font-bold uppercase tracking-widest py-2 rounded-[10px] active:scale-95 transition-all text-white", todaysWater >= 128 ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100" : "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100")}
+            >
+              + Cup
+            </button>
+            <button 
+              onClick={() => handleAddWater(24)}
+              className={cn("text-[8px] font-bold uppercase tracking-widest py-2 rounded-[10px] active:scale-95 transition-all text-white", todaysWater >= 128 ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100" : "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100")}
+            >
+              + Bottle
+            </button>
+          </div>
+          {todaysWater >= 128 && (
+            <div className="absolute -bottom-8 -right-8 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full pointer-events-none" />
+          )}
+        </div>
+
         <MetricTile 
           icon={TrendingUp} 
           label="Steps" 
