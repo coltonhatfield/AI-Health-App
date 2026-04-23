@@ -23,4 +23,10 @@
   .indicator-pulse {
     @apply w-2 h-2 bg-emerald-500 rounded-full inline-block animate-pulse;
   }
+
+  .rbh polygon:hover {
+    fill: #f43f5e !important;
+    opacity: 0.8;
+    cursor: pointer;
+  }
 }

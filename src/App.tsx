@@ -65,6 +65,7 @@ import {
   Bar
 } from 'recharts';
 import { getAIRecommendations, generateRecoveryWorkout } from './services/geminiService';
+import Model, { IMuscleStats } from 'react-body-highlighter';
 interface FirestoreErrorInfo {
   error: string;
   operationType: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write';
@@ -155,20 +156,14 @@ interface Workout {
 
 // --- Components ---
 
-const MUSCLE_GROUPS = [
-  'Neck', 'Shoulders', 'Chest', 'Lats', 
-  'Middle Back', 'Lower Back', 'Abs', 'Obliques',
-  'Biceps', 'Triceps', 'Forearms', 
-  'Glutes', 'Quads', 'Hamstrings', 'Calves'
-];
-
 const AIRecoveryPlanner = ({ onClose, onWorkoutGenerated }: { onClose: () => void, onWorkoutGenerated: (workout: any) => void }) => {
   const [soreMuscles, setSoreMuscles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [viewState, setViewState] = useState<'anterior' | 'posterior'>('anterior');
 
-  const toggleMuscle = (m: string) => {
-    setSoreMuscles(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
-  };
+  const handleMuscleClick = React.useCallback(({ muscle }: IMuscleStats) => {
+    setSoreMuscles(prev => prev.includes(muscle) ? prev.filter(x => x !== muscle) : [...prev, muscle]);
+  }, []);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -179,6 +174,12 @@ const AIRecoveryPlanner = ({ onClose, onWorkoutGenerated }: { onClose: () => voi
     }
   };
 
+  const data = soreMuscles.map(m => ({
+    name: 'Soreness',
+    muscles: [m],
+    frequency: 1
+  }));
+
   return (
     <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4 overflow-y-auto">
       <motion.div 
@@ -187,7 +188,7 @@ const AIRecoveryPlanner = ({ onClose, onWorkoutGenerated }: { onClose: () => voi
         className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-[32px] p-8 shadow-2xl my-auto"
       >
         <div className="flex items-center gap-3 mb-6">
-           <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
+           <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20 shrink-0">
              <BrainCircuit size={20} />
            </div>
            <div>
@@ -196,24 +197,35 @@ const AIRecoveryPlanner = ({ onClose, onWorkoutGenerated }: { onClose: () => voi
            </div>
         </div>
         
-        <div className="flex flex-wrap gap-2 mb-8">
-          {MUSCLE_GROUPS.map(m => {
-            const isSore = soreMuscles.includes(m);
-            return (
-              <button
-                key={m}
-                onClick={() => toggleMuscle(m)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                  isSore 
-                    ? "bg-rose-500/20 border-rose-500/50 text-rose-400 font-bold" 
-                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400/70 hover:bg-emerald-500/20 hover:text-emerald-400"
-                )}
-              >
-                {m} {isSore ? '🔥' : '✅'}
-              </button>
-            )
-          })}
+        <div className="flex flex-col items-center mb-8">
+          <div className="flex bg-zinc-800/50 p-1 rounded-xl mb-4 w-full">
+            <button
+              onClick={() => setViewState('anterior')}
+              className={cn("flex-1 py-1.5 text-xs font-bold rounded-lg transition-all", viewState === 'anterior' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}
+            >
+              Front
+            </button>
+            <button
+              onClick={() => setViewState('posterior')}
+              className={cn("flex-1 py-1.5 text-xs font-bold rounded-lg transition-all", viewState === 'posterior' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}
+            >
+              Back
+            </button>
+          </div>
+          
+          <div className="bg-zinc-800/20 p-4 rounded-3xl border border-zinc-800/50 flex justify-center w-full h-[350px]">
+            <Model
+              data={data}
+              style={{ padding: '0', width: '100%', height: '100%' }}
+              onClick={handleMuscleClick}
+              type={viewState}
+              bodyColor="#3f3f46"
+              highlightedColors={['#f43f5e', '#f43f5e']}
+            />
+          </div>
+          <p className="text-zinc-500 text-[10px] mt-4 uppercase font-bold tracking-widest text-center">
+            {soreMuscles.length > 0 ? `${soreMuscles.length} Muscle${soreMuscles.length > 1 ? 's' : ''} Selected` : 'Tap a muscle to select'}
+          </p>
         </div>
 
         <div className="flex gap-4">

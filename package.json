@@ -24,6 +24,7 @@
     "motion": "^12.23.24",
     "openai": "^6.34.0",
     "react": "^19.0.0",
+    "react-body-highlighter": "^2.0.5",
     "react-dom": "^19.0.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
