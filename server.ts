@@ -90,13 +90,18 @@ async function startServer() {
       }
 
       console.log(`Processing health data for user: ${userId}`);
-      console.log("Raw Payload Keys:", Object.keys(payload));
+      console.log("Full Payload Structure:", JSON.stringify(Object.keys(payload)));
+      
       if (payload.data) {
         console.log("Data Keys:", Object.keys(payload.data));
+        if (payload.data.metrics) {
+          console.log(`Metrics array length: ${payload.data.metrics.length}`);
+          console.log("Metric names received:", payload.data.metrics.map((m: any) => m.name).join(", "));
+        }
       }
       
       const metrics = payload.data?.metrics || [];
-      console.log(`Received ${metrics.length} metrics from Shortcuts.`);
+      console.log(`Received ${metrics.length} metrics from array.`);
 
       // Log specific interesting metrics for debugging
       const specialMetrics = ['weight', 'height', 'body_mass', 'body_height'];

@@ -674,57 +674,72 @@ export default function App() {
                 </div>
               </Card>
 
-              <Card title="Demo Controls">
-                <p className="text-zinc-400 text-sm mb-4">
-                  Populate your dashboard with realistic health and workout data for testing.
+              <Card title="Database Accuracy Check">
+                <p className="text-zinc-400 text-sm mb-4 italic">
+                  Compare these records against your "All Health Data" in the iOS Health App.
                 </p>
-                <button 
-                  onClick={async () => {
-                    const batch = writeBatch(db);
-                    const now = new Date();
+                <div className="space-y-3">
+                  <div className="bg-zinc-800/50 rounded-xl p-4 border border-zinc-700/50">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <p className="text-zinc-500 text-[10px] uppercase font-bold">Total Records</p>
+                        <p className="text-white font-bold text-lg">{metrics.length}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-zinc-500 text-[10px] uppercase font-bold">Last Sync</p>
+                        <p className="text-white font-medium text-xs">
+                          {metrics[0] ? format(metrics[0].timestamp.toDate(), 'MMM d, h:mm a') : 'Never'}
+                        </p>
+                      </div>
+                    </div>
                     
-                    // Seed Workouts
-                    const workoutsRef = collection(db, 'workouts');
-                    const mockWorkouts = [
-                      { userId: user.uid, name: 'Evening Volleyball', type: 'cardio', date: Timestamp.fromDate(subDays(now, 1)), exercises: [{ name: 'Volleyball Match', duration: 90 }] },
-                      { userId: user.uid, name: 'Upper Body Power', type: 'lifting', date: Timestamp.fromDate(subDays(now, 2)), exercises: [{ name: 'Bench Press', weight: 100, reps: 5 }] },
-                      { userId: user.uid, name: 'Morning Row', type: 'cardio', date: Timestamp.fromDate(subDays(now, 3)), exercises: [{ name: 'Rowing', duration: 25 }] },
-                    ];
-                    
-                    for (const w of mockWorkouts) {
-                      batch.set(doc(workoutsRef), w);
-                    }
+                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1 border-t border-zinc-800 pt-4">
+                      {metrics.length === 0 && <p className="text-zinc-600 text-xs italic text-center py-4">No data records found.</p>}
+                      {metrics.slice(0, 50).map((m) => (
+                        <div key={m.id} className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-zinc-800/30">
+                          <div className="flex flex-col gap-1">
+                            <p className="text-white font-bold text-[11px] capitalize flex items-center gap-2">
+                              {m.type.replace(/_/g, ' ')}
+                              {m.source === 'seeded_demo' && <span className="bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded text-[8px] uppercase">Mock</span>}
+                            </p>
+                            <p className="text-zinc-500 text-[9px] uppercase tracking-tighter">
+                              {format(m.timestamp.toDate(), 'MM/dd HH:mm:ss')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-blue-400 font-mono font-bold text-xs">{m.value} {m.unit}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
 
-                    // Seed Metrics
-                    const metricsRef = collection(db, 'health_metrics');
-                    const types = [
-                      { type: 'step_count', val: 12432, unit: 'steps' },
-                      { type: 'active_energy', val: 654, unit: 'kcal' },
-                      { type: 'protein', val: 165, unit: 'g' },
-                      { type: 'carbohydrates', val: 240, unit: 'g' },
-                      { type: 'dietary_energy', val: 2450, unit: 'kcal' },
-                      { type: 'resting_energy', val: 1850, unit: 'kcal' },
-                      { type: 'weight', val: 82.5, unit: 'kg' }
-                    ];
-
-                    for (const m of types) {
-                      batch.set(doc(metricsRef), {
-                        userId: user.uid,
-                        type: m.type,
-                        value: m.val,
-                        unit: m.unit,
-                        timestamp: Timestamp.now(),
-                        source: 'seeded_demo'
-                      });
-                    }
-
-                    await batch.commit();
-                    alert('Database seeded with realistic data!');
-                  }}
-                  className="w-full bg-zinc-800 border border-zinc-700 py-3 rounded-xl text-sm font-bold text-white active:scale-95 transition-transform"
-                >
-                  Prepopulate realistic data
-                </button>
+              <Card title="Danger Zone">
+                <p className="text-zinc-400 text-sm mb-4">
+                  Permanently delete your metrics. Mock data can be removed separately.
+                </p>
+                <div className="space-y-3">
+                  <button 
+                    onClick={async () => {
+                      if (!confirm("Are you sure you want to delete ALL your metrics? This cannot be undone.")) return;
+                      
+                      const batch = writeBatch(db);
+                      const mDocs = metrics.map(m => doc(db, 'health_metrics', m.id));
+                      const wDocs = workouts.map(w => doc(db, 'workouts', w.id));
+                      
+                      mDocs.forEach(d => batch.delete(d));
+                      wDocs.forEach(d => batch.delete(d));
+                      
+                      await batch.commit();
+                      alert("Database successfully cleared.");
+                    }}
+                    className="w-full bg-rose-500/10 border border-rose-500/20 py-3 rounded-xl text-sm font-bold text-rose-500 active:scale-95 transition-transform"
+                  >
+                    Clear All My Data
+                  </button>
+                </div>
               </Card>
 
               <Card title="Data Integration">
