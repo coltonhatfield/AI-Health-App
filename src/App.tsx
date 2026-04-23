@@ -216,6 +216,23 @@ const Dashboard = ({ user, metrics, workouts, userGoals }: { user: User, metrics
   const fiberValue = Math.round(latest('fiber'));
   const sugarValue = Math.round(latest(['dietary_sugar', 'sugar']));
 
+  // Consistency Heatmap logic (last 35 days)
+  const todayForHeatmap = new Date();
+  const heatmapData = Array.from({ length: 35 }).map((_, i) => {
+    const day = subDays(todayForHeatmap, 34 - i);
+    const dayStart = startOfDay(day);
+    const dayEnd = endOfDay(day);
+    const dailyWorkouts = workouts.filter(w => {
+      if (!w.date) return false;
+      const wDate = w.date.toDate();
+      return wDate >= dayStart && wDate <= dayEnd;
+    });
+    return { 
+      date: day, 
+      count: dailyWorkouts.length
+    };
+  });
+
   const nutritionMetrics = [
     { label: 'Calories', value: caloriesValue, goal: userGoals.calories, color: '#fb923c', exceededColor: '#fb7185' },
     { label: 'Protein', value: proteinValue, goal: userGoals.protein, color: '#10b981', exceededColor: '#34d399' },
@@ -336,6 +353,41 @@ const Dashboard = ({ user, metrics, workouts, userGoals }: { user: User, metrics
                </div>
              )}
            </div>
+        </div>
+      </Card>
+
+      <Card title="WORKOUT CONSISTENCY HEATMAP">
+        <div className="grid grid-cols-7 gap-1.5 mt-2">
+          {heatmapData.map((data, idx) => {
+            let bgColor = "bg-zinc-800/30";
+            if (data.count === 1) bgColor = "bg-emerald-500/40 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]";
+            else if (data.count === 2) bgColor = "bg-emerald-500/70 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]";
+            else if (data.count > 2) bgColor = "bg-emerald-500 border-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.4)]";
+            
+            return (
+              <div 
+                key={idx} 
+                className={cn(
+                  "aspect-square rounded-[4px] border border-zinc-800/50 transition-all hover:scale-125 hover:z-10 hover:border-zinc-300", 
+                  bgColor
+                )}
+                title={`${format(data.date, 'MMM d')}: ${data.count} sessions`}
+              />
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between mt-5 px-1">
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Last 35 Days</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">Less</p>
+            <div className="flex gap-1">
+              <div className="w-2.5 h-2.5 rounded-[2px] bg-zinc-800/30 border border-zinc-800/50" />
+              <div className="w-2.5 h-2.5 rounded-[2px] bg-emerald-500/40 border border-emerald-500/20" />
+              <div className="w-2.5 h-2.5 rounded-[2px] bg-emerald-500/70 border border-emerald-500/40" />
+              <div className="w-2.5 h-2.5 rounded-[2px] bg-emerald-500 border border-emerald-400" />
+            </div>
+            <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest ml-1">More</p>
+          </div>
         </div>
       </Card>
 
