@@ -191,6 +191,11 @@ async function startServer() {
     try {
       const { metrics, workouts } = req.body;
       
+      // Truncate metrics to avoid rate limits and save tokens
+      // Only send the last 30 data points for context
+      const truncatedMetrics = Array.isArray(metrics) ? metrics.slice(0, 30) : [];
+      const truncatedWorkouts = Array.isArray(workouts) ? workouts.slice(0, 10) : [];
+
       const prompt = `
         You are a high-performance health and fitness coach. 
         Analyze the health metrics and workout history provided below.
@@ -201,8 +206,8 @@ async function startServer() {
         - Body composition trends (Weight/Height)
         
         Data:
-        Metrics: ${JSON.stringify(metrics)}
-        Workouts: ${JSON.stringify(workouts)}
+        Metrics: ${JSON.stringify(truncatedMetrics)}
+        Workouts: ${JSON.stringify(truncatedWorkouts)}
         
         Provide 3 concise, highly actionable "Narrative Insights" for the user. 
         Format your response as a JSON array of objects with exactly these keys: 'title', 'content', and 'category' (recovery, performance, or general).
@@ -210,7 +215,8 @@ async function startServer() {
       `;
 
       const completion = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile", // Or another Groq model
+        // llama-3.1-8b-instant has MUCH higher rate limits on the free tier than 70b
+        model: "llama-3.1-8b-instant", 
         messages: [
           { role: "system", content: "You are a specialized health analytics assistant that only outputs valid JSON arrays." },
           { role: "user", content: prompt }
