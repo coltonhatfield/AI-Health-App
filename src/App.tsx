@@ -15,7 +15,15 @@ import {
   LogOut,
   User as UserIcon,
   Trash2,
-  Droplet
+  Droplet,
+  Award,
+  Trophy,
+  Medal,
+  Star,
+  Shield,
+  Crown,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -858,7 +866,7 @@ const Insights = ({ user, metrics }: { user: User, metrics: HealthMetric[], key?
   );
 };
 
-const Progression = ({ workouts }: { workouts: Workout[], key?: React.Key }) => {
+const Progression = ({ workouts, metrics = [], userGoals }: { workouts: Workout[], metrics?: HealthMetric[], userGoals?: UserGoals, key?: React.Key }) => {
   const trackingKeys = ['Squat', 'Bench Press', 'Deadlift', '3 Mile Run'];
   const exerciseData: Record<string, {date: string, val: number, _dateDate: Date}[]> = {
     'Squat': [],
@@ -921,6 +929,110 @@ const Progression = ({ workouts }: { workouts: Workout[], key?: React.Key }) => 
     };
   }).filter((pr): pr is NonNullable<typeof pr> => pr !== null);
 
+  // Badges Calculation
+  const achievements = [
+    {
+      id: 'first_workout',
+      title: 'Initiation',
+      desc: 'Log your first workout session.',
+      icon: Trophy,
+      color: 'text-zinc-300',
+      bg: 'bg-zinc-800/80 border-zinc-700/80 shadow-lg',
+      unlocked: workouts.length > 0
+    },
+    {
+      id: 'consistency',
+      title: 'Consistency',
+      desc: 'Log 10 total sessions.',
+      icon: Star,
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]',
+      unlocked: workouts.length >= 10
+    },
+    {
+      id: 'century_mark',
+      title: 'Century Mark',
+      desc: 'Complete 100 workout sessions.',
+      icon: Crown,
+      color: 'text-yellow-500',
+      bg: 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
+      unlocked: workouts.length >= 100
+    },
+    {
+      id: 'iron_lungs',
+      title: 'Iron Lungs',
+      desc: 'Run 3+ miles in a single session.',
+      icon: Heart,
+      color: 'text-rose-500',
+      bg: 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]',
+      unlocked: workouts.some(w => w.type === 'cardio' && w.exercises.some(e => e.distance >= 3 && e.name.toLowerCase().includes('run')))
+    },
+    {
+      id: 'hydro_homie',
+      title: 'Hydro Homie',
+      desc: 'Track 128 oz of water in a single day.',
+      icon: Droplet,
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-500/10 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]',
+      // Check metrics for >= 128 oz in a single day
+      unlocked: (() => {
+        const waterByDate: Record<string, number> = {};
+        metrics.forEach(m => {
+          if (m.type === 'water_intake' && m.timestamp) {
+            const dateStr = format(m.timestamp.toDate(), 'yyyy-MM-dd');
+            waterByDate[dateStr] = (waterByDate[dateStr] || 0) + m.value;
+          }
+        });
+        return Object.values(waterByDate).some(val => val >= 128);
+      })()
+    },
+    {
+      id: 'heavy_lifter',
+      title: 'Heavy Lifter',
+      desc: 'Log a lift over 225 lbs.',
+      icon: Shield,
+      color: 'text-purple-500',
+      bg: 'bg-purple-500/10 border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]',
+      unlocked: workouts.some(w => w.type === 'lifting' && w.exercises.some(e => e.weight >= 225))
+    },
+    {
+      id: 'early_bird',
+      title: 'Early Bird',
+      desc: 'Log a session before 6 AM.',
+      icon: Sun,
+      color: 'text-orange-400',
+      bg: 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]',
+      unlocked: workouts.some(w => w.date && w.date.toDate().getHours() < 6 && w.date.toDate().getHours() >= 4)
+    },
+    {
+      id: 'night_owl',
+      title: 'Night Owl',
+      desc: 'Log a session after 9 PM.',
+      icon: Moon,
+      color: 'text-indigo-400',
+      bg: 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]',
+      unlocked: workouts.some(w => w.date && w.date.toDate().getHours() >= 21)
+    },
+    {
+      id: 'beast_mode',
+      title: 'Beast Mode',
+      desc: 'Log 10+ exercises in one session.',
+      icon: Flame,
+      color: 'text-red-500',
+      bg: 'bg-red-500/10 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]',
+      unlocked: workouts.some(w => w.exercises && w.exercises.length >= 10)
+    },
+    {
+      id: 'marathoner',
+      title: 'Marathoner',
+      desc: 'Run 10+ miles in a single session.',
+      icon: Activity,
+      color: 'text-pink-500',
+      bg: 'bg-pink-500/10 border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.15)]',
+      unlocked: workouts.some(w => w.type === 'cardio' && w.exercises.some(e => e.distance >= 10 && e.name.toLowerCase().includes('run')))
+    }
+  ];
+
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.98 }} 
@@ -929,10 +1041,11 @@ const Progression = ({ workouts }: { workouts: Workout[], key?: React.Key }) => 
       className="pb-24"
     >
       <div className="flex justify-between items-center mb-8 px-1">
-        <h1 className="text-2xl font-bold tracking-tight text-white line-clamp-1">PR Tracker</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white line-clamp-1">Progression</h1>
       </div>
 
-      {prs.length === 0 ? (
+      <Card title="PR Tracker">
+        {prs.length === 0 ? (
         <div className="text-center py-24 bg-zinc-900/30 rounded-3xl border border-dashed border-zinc-800">
            <TrendingUp className="mx-auto text-zinc-800 mb-4" size={48} />
            <p className="text-zinc-600 font-medium italic">Log one of your core tracking targets to see charts. (Squat, Bench, Deadlift, or 3 Mile Run).</p>
@@ -963,6 +1076,43 @@ const Progression = ({ workouts }: { workouts: Workout[], key?: React.Key }) => 
           ))}
         </div>
       )}
+      </Card>
+
+      <Card title="Achievements & Milestones" className="mt-6">
+        <div className="grid grid-cols-2 gap-3 mb-2">
+          {achievements.map(badge => {
+            const isUnlocked = badge.unlocked;
+            return (
+              <div 
+                key={badge.id}
+                className={cn(
+                  "relative p-4 rounded-2xl border transition-all duration-300 flex flex-col items-center text-center gap-2",
+                  isUnlocked ? badge.bg : "bg-zinc-900/40 border-zinc-800/50 grayscale opacity-60"
+                )}
+              >
+                {!isUnlocked && (
+                  <div className="absolute top-2 right-2 p-1 bg-zinc-800 rounded-full text-zinc-500">
+                     <Award size={10} />
+                  </div>
+                )}
+                
+                <div className={cn("p-3 rounded-full flex items-center justify-center", isUnlocked ? badge.color + " bg-black/20" : "bg-black/40 text-zinc-600")}>
+                  <badge.icon size={24} className={isUnlocked ? "drop-shadow-lg" : ""} />
+                </div>
+                
+                <div>
+                  <h4 className={cn("font-bold text-sm tracking-tight", isUnlocked ? "text-white" : "text-zinc-500")}>
+                    {badge.title}
+                  </h4>
+                  <p className={cn("text-[9px] uppercase font-bold tracking-widest mt-1", isUnlocked ? "text-zinc-400" : "text-zinc-600")}>
+                    {badge.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </motion.div>
   );
 };
@@ -1058,7 +1208,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && <Dashboard key="dash" user={user} metrics={metrics} workouts={workouts} userGoals={userGoals} />}
           {activeTab === 'workouts' && <Workouts key="work" user={user} />}
-          {activeTab === 'progression' && <Progression key="prog" workouts={workouts} />}
+          {activeTab === 'progression' && <Progression key="prog" workouts={workouts} metrics={metrics} userGoals={userGoals} />}
           {activeTab === 'insights' && <Insights key="ins" user={user} metrics={metrics} />}
           {activeTab === 'profile' && (
             <motion.div key="prof" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-24">
