@@ -7,6 +7,26 @@
 
 Vitalis is a high-performance health and fitness dashboard tailored for deep biometric tracking, workout logging, and AI-driven insights. Designed with a sleek, data-rich interface, Vitalis acts as your personal performance laboratory.
 
+## 📸 App Preview
+
+*(Replace the placeholder URLs below with the paths to your actual images and videos once you upload them to your repository or image host)*
+
+### Screen Recording / Demo
+
+*(For GitHub, video files like `.mp4` can be dragged and dropped directly into the README editor, or you can use a .gif)*
+<!-- If using a GIF: -->
+![Vitalis Demo](assets/demo.gif)
+
+<!-- If using a video file (works on GitHub): -->
+<!-- <video src="assets/demo.mp4" controls="controls" style="max-width: 100%;"></video> -->
+
+### Screenshots
+
+<div align="center">
+  <img src="assets/screenshot-dashboard.png" alt="Main Dashboard" width="45%" padding="5px" />
+  <img src="assets/screenshot-recovery.png" alt="AI Recovery Planner" width="45%" padding="5px" />
+</div>
+
 ## 🚀 Features
 
 * **Bio-Metric Dashboard**: Real-time overview of your readiness, active calorie burn, step count, and hydration tracking.
