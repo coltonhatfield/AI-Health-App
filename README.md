@@ -23,8 +23,10 @@ Vitalis is a high-performance health and fitness dashboard tailored for deep bio
 ### Screenshots
 
 <div align="center">
-  <img src="assets/screenshot-dashboard.png" alt="Main Dashboard" width="45%" padding="5px" />
-  <img src="assets/screenshot-recovery.png" alt="AI Recovery Planner" width="45%" padding="5px" />
+  <img src="assets/screenshot-1.png" alt="Dashboard View" width="45%" padding="5px" />
+  <img src="assets/screenshot-2.png" alt="Metrics and Progress" width="45%" padding="5px" />
+  <img src="assets/screenshot-3.png" alt="Workout Logging" width="45%" padding="5px" />
+  <img src="assets/screenshot-4.png" alt="AI Insights" width="45%" padding="5px" />
 </div>
 
 ## 🚀 Features
