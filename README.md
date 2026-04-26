@@ -50,6 +50,96 @@ Vitalis is a high-performance health and fitness dashboard tailored for deep bio
 * **Database & Auth**: Firebase Auth, Cloud Firestore (client & admin SDK).
 * **AI Integration**: OpenAI SDK (configured for Groq/Llama).
 
+## 📐 Architecture Diagrams
+
+### Logical Architecture
+
+This diagram illustrates the logical flow of data and separation of concerns between the frontend, backend APIs, Firebase services, and external integrations.
+
+```mermaid
+graph TD
+    User([User / Athlete])
+    AppleHealth([iOS Health App])
+    
+    subgraph "Vitalis Frontend (React SPA)"
+        Dashboard[Dashboard UI]
+        WorkoutLog[Workout Logger]
+        AIPlanner[AI Recovery Planner]
+        AuthUI[Authentication UI]
+    end
+    
+    subgraph "Vitalis Backend Server (Express)"
+        HealthSyncAPI[Health Data Sync API]
+        AIAgent[LLM API Routes]
+    end
+    
+    subgraph "Firebase Services"
+        FirebaseAuth[Firebase Authentication]
+        Firestore[Cloud Firestore DB]
+    end
+    
+    subgraph "External Integration"
+        LLMAPI[Groq API / Llama 3]
+    end
+
+    User -->|Views / Interacts| Dashboard
+    User -->|Logs Session| WorkoutLog
+    User -->|Selects Sore Muscles| AIPlanner
+    User -->|Logs in via Google| AuthUI
+    
+    AppleHealth -->|Apple Shortcuts POST| HealthSyncAPI
+    HealthSyncAPI -->|Stores Metrics| Firestore
+    
+    AuthUI <-->|OAuth Token| FirebaseAuth
+    
+    Dashboard <-->|Real-time Data SDK| Firestore
+    WorkoutLog <-->|Saves Workouts SDK| Firestore
+    
+    AIPlanner -->|Sends Biometrics| AIAgent
+    AIAgent <-->|Prompts & JSON Response| LLMAPI
+    AIAgent -->|Generates Workout| AIPlanner
+```
+
+### Physical Architecture
+
+This diagram visualizes how the application is physically deployed and networked within the hosting environment.
+
+```mermaid
+graph TD
+    Client[Web Browser / Client]
+    iOS[iOS Device / Apple Health]
+    
+    subgraph "Hosting Environment"
+        Nginx[Reverse Proxy / TLS]
+        
+        subgraph "Node.js Container"
+            NodeApp["Express Server (port 3000)"]
+            StaticSite["Vite Static Files (dist/)"]
+        end
+    end
+    
+    subgraph "Google Cloud Platform"
+        AuthService[Firebase Auth]
+        FirestoreService[Firestore DB Instance]
+    end
+    
+    subgraph "External Providers"
+        AIModel[Groq API Services]
+    end
+    
+    Client -- "HTTPS (port 443)" --> Nginx
+    iOS -- "HTTPS POST (port 443)" --> Nginx
+    
+    Nginx -- "HTTP (port 3000)" --> NodeApp
+    NodeApp -- "Serves" --> StaticSite
+    
+    NodeApp -- "REST API (HTTPS)" --> AIModel
+    NodeApp -- "Admin SDK (gRPC/HTTPS)" --> FirestoreService
+    
+    Client -- "Client SDK (HTTPS)" --> AuthService
+    Client -- "Client SDK (WebSockets)" --> FirestoreService
+```
+
 ## 📦 Installation & Setup
 
 1. **Clone the repository:**
